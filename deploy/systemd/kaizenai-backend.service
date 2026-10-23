@@ -1,0 +1,19 @@
+[Unit]
+Description=KaizenAI backend
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/kaizenai/current/backend
+EnvironmentFile=/opt/kaizenai/shared/backend.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/kaizenai/current/backend/.venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,21 @@
+[Unit]
+Description=KaizenAI frontend
+After=network.target kaizenai-backend.service
+Wants=kaizenai-backend.service
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/kaizenai/current/frontend
+EnvironmentFile=/opt/kaizenai/shared/frontend.env
+Environment=NODE_ENV=production
+Environment=PATH=/opt/kaizenai/tools/node-v22.14.0-linux-x64/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
+ExecStart=/opt/kaizenai/tools/node-v22.14.0-linux-x64/bin/npm run start -- --hostname 127.0.0.1 --port 3000
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

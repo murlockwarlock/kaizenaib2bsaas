@@ -1,0 +1,23 @@
+**/.env
+**/.env.*
+!**/.env.example
+**/*.db
+**/uploads/
+**/node_modules/
+**/.next/
+**/.pytest_cache/
+**/__pycache__/
+**/*.pyc
+**/*.log
+**/*.pem
+backend/.vscode/
+frontend/cloudflared
+docs/
+kieaidocs/
+.claude/
+Примеры кнопок/
+check_kie.py
+test_base64.py
+DOCKER_POSTGRES_PLAN.md
+frontend/README.md
+frontend/public/effects/examples/README.txt

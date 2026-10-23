@@ -1,0 +1,139 @@
+.burst {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  display: grid;
+  place-items: center;
+  opacity: 1;
+  pointer-events: none;
+  z-index: 120;
+  isolation: isolate;
+  filter: blur(6px) contrast(24) saturate(1.08);
+  mix-blend-mode: screen;
+}
+
+.burst::before {
+  content: '';
+  position: absolute;
+  inset: -24px;
+  border-radius: 999px;
+  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.08), transparent 72%);
+  opacity: 0;
+}
+
+.burst::after {
+  content: '';
+  position: absolute;
+  inset: 12%;
+  border-radius: 999px;
+  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.38) 42%, transparent 72%);
+  transform: scale(0.18);
+  opacity: 0;
+}
+
+.active::before {
+  animation: halo 440ms ease forwards;
+}
+
+.active::after {
+  animation: pill 360ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.particle,
+.point {
+  display: block;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  transform-origin: center;
+}
+
+.particle {
+  position: absolute;
+  top: calc(50% - 9px);
+  left: calc(50% - 9px);
+  animation: particle var(--time, 720ms) ease 1 both;
+}
+
+.point {
+  background: var(--color, white);
+  opacity: 0;
+  animation: point var(--time, 720ms) ease 1 both;
+}
+
+@keyframes halo {
+  0% {
+    opacity: 0.04;
+    transform: scale(0.5);
+  }
+
+  100% {
+    opacity: 0.18;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes pill {
+  0% {
+    opacity: 0;
+    transform: scale(0.18);
+  }
+
+  35% {
+    opacity: 0.95;
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+
+@keyframes particle {
+  0% {
+    transform: rotate(0deg) translate(var(--start-x), var(--start-y));
+    opacity: 1;
+    animation-timing-function: cubic-bezier(0.55, 0, 1, 0.45);
+  }
+
+  70% {
+    transform: rotate(calc(var(--rotate) * 0.48)) translate(calc(var(--end-x) * 1.14), calc(var(--end-y) * 1.14));
+    opacity: 1;
+    animation-timing-function: ease;
+  }
+
+  100% {
+    transform: rotate(calc(var(--rotate) * 1.05)) translate(calc(var(--end-x) * 0.52), calc(var(--end-y) * 0.52));
+    opacity: 0;
+  }
+}
+
+@keyframes point {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+    animation-timing-function: cubic-bezier(0.55, 0, 1, 0.45);
+  }
+
+  32% {
+    opacity: 1;
+  }
+
+  65% {
+    transform: scale(var(--scale, 1));
+    opacity: 1;
+    animation-timing-function: ease;
+  }
+
+  100% {
+    transform: scale(0);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .particle, .point { animation: none; }
+  .active::before, .active::after { animation: none; }
+}
