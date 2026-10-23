@@ -3,12 +3,13 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Mail, Lock, ArrowRight, Loader2, UserPlus, LogIn, Sparkles, Check } from 'lucide-react';
+import { X, Mail, Lock, ArrowRight, Loader2, UserPlus, LogIn, Check } from 'lucide-react';
 import { register, login as apiLogin } from '@/lib/api';
 import { useAuth } from '@/components/AuthContext';
 import { Link } from '@/i18n/routing';
 import { clearStoredUtmAttribution, getStoredUtmAttribution } from '@/lib/utm';
 import SocialAuthButtons from '@/components/SocialAuthButtons';
+import KaizenMark from '@/components/KaizenMark';
 
 interface AuthRequiredModalProps {
     open: boolean;
@@ -122,7 +123,7 @@ export default function AuthRequiredModal({ open, onClose, onSuccess }: AuthRequ
                                 <X className="w-5 h-5" />
                             </button>
                             <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-500 to-blue-500 mb-3 shadow-lg shadow-violet-500/25">
-                                <Sparkles className="w-6 h-6 text-white" />
+                                <KaizenMark className="h-6 w-6 text-white" />
                             </div>
                             <h2 className="text-lg font-bold text-white mb-1">
                                 {mode === 'register' ? t('auth_required_title') : t('login_title')}

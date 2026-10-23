@@ -2,7 +2,7 @@ import dynamic from 'next/dynamic';
 import { getLocale, getTranslations } from 'next-intl/server';
 import {
   Coins,
-  Sparkles,
+  Layers3,
 } from 'lucide-react';
 import { SUNO_BENEFIT_CONFIG, SUNO_PRESET_CONFIG } from '@/components/SunoSpotlight';
 import { EFFECT_HERO_PREVIEW_IDS, EFFECT_TOOLS } from '@/lib/effect-tools';
@@ -95,7 +95,7 @@ export default async function CatalogPage() {
         <div className="relative grid gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)] lg:items-center">
           <div>
             <div className="accent-pill inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-white/88">
-              <Sparkles className="h-3.5 w-3.5 text-[#ffd166]" />
+              <Layers3 className="h-3.5 w-3.5 text-[#ffd166]" />
               {t('badge')}
             </div>
             <h1 className="section-title mt-5 max-w-3xl text-[clamp(2.5rem,7vw,4.85rem)] leading-[0.98] text-white">

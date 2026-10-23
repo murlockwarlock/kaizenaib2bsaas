@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import React, { startTransition, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
-import { Film, Grid3X3, ImageIcon, Loader2, Music, Sparkles } from 'lucide-react';
+import { Film, Grid3X3, ImageIcon, Loader2, Music } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
@@ -157,7 +157,7 @@ export default function ExplorePage() {
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end">
           <div>
             <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.24em] text-zinc-200">
-              <Sparkles className="h-3.5 w-3.5 text-[#ffd166]" />
+              <Grid3X3 className="h-3.5 w-3.5 text-[#ffd166]" />
               {t('hero_badge')}
             </div>
             <h1 className="text-3xl font-semibold tracking-tight text-white md:text-4xl">{t('title')}</h1>

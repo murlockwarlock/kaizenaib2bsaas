@@ -6,7 +6,6 @@ import {
   Clapperboard,
   Film,
   Image as ImageIcon,
-  Sparkles,
   Video,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -200,7 +199,7 @@ function KlingMotionControlExample({
               onClick={onUsePrompt}
               className="mt-5 inline-flex w-fit items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-4 py-2 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-400/15"
             >
-              <Sparkles className="h-4 w-4" />
+              <Clapperboard className="h-4 w-4" />
               {ctaLabel}
             </button>
           </div>
@@ -275,7 +274,7 @@ function SingleVideoModelExample({
             onClick={onUsePrompt}
             className="mt-5 inline-flex w-fit items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-4 py-2 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-400/15"
           >
-            <Sparkles className="h-4 w-4" />
+            <Clapperboard className="h-4 w-4" />
             {ctaLabel}
           </button>
         </div>
@@ -556,7 +555,7 @@ export default function VideoShowcasePanel({
                   {example.prompt[locale]}
                 </p>
                 <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-1.5 text-xs font-medium text-zinc-200 transition group-hover:border-cyan-400/30 group-hover:text-white">
-                  <Sparkles className="h-3.5 w-3.5" />
+                  <Clapperboard className="h-3.5 w-3.5" />
                   {t('use_prompt')}
                 </div>
               </div>

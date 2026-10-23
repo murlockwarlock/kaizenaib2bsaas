@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
-import { Heart, Music, Play, Sparkles } from 'lucide-react';
+import { Heart, Music, Play } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { Link } from '@/i18n/routing';
@@ -370,7 +370,7 @@ export default function PublicTaskCard({
           ) : null}
           {featured ? (
             <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/55 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white backdrop-blur-md">
-              <Sparkles className="h-3 w-3 text-[#ffd166]" />
+              <Play className="h-3 w-3 text-[#ffd166]" />
               {t('featured_case')}
             </div>
           ) : null}

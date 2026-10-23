@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { ArrowUpRight, Sparkles } from 'lucide-react';
+import { ArrowUpRight, Layers3 } from 'lucide-react';
 
 import { Link } from '@/i18n/routing';
 
@@ -70,7 +70,7 @@ export default function PremiumModelDirectory({
       <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <div className="accent-pill inline-flex items-center gap-2 rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.24em] text-white/90">
-            <Sparkles className="h-3.5 w-3.5 text-[#ffd166]" />
+            <Layers3 className="h-3.5 w-3.5 text-[#ffd166]" />
             {badge}
           </div>
           <h2 className="section-title mt-4 text-3xl text-white md:text-4xl">{title}</h2>

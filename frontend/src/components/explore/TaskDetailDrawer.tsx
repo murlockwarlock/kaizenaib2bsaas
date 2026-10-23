@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowUpRight, CalendarDays, Download, Eye, Heart, Info, Sparkles, Wand2, X } from 'lucide-react';
+import { ArrowUpRight, CalendarDays, Download, Eye, Heart, Info, Wand2, X } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 
 import { Link, useRouter } from '@/i18n/routing';
@@ -197,7 +197,7 @@ export default function TaskDetailDrawer({
 
                 <section className="rounded-[1.55rem] border border-white/10 bg-white/[0.03] p-4">
                   <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
-                    <Sparkles className="h-3.5 w-3.5 text-[#ffd166]" />
+                    <Info className="h-3.5 w-3.5 text-[#ffd166]" />
                     {t('prompt_label')}
                   </div>
                   {prompt ? (

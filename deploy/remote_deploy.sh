@@ -143,8 +143,10 @@ if [[ -e "$RELEASE_DIR" ]]; then
 fi
 
 run_logged packages sudo apt-get update
-run_logged packages sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates certbot curl nginx openssl python3 python3-pip python3-venv build-essential sqlite3 xz-utils
+run_logged packages sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates certbot curl nginx openssl python3 python3-pip python3-venv build-essential redis-server sqlite3 xz-utils
 ensure_swap
+run_logged redis-service sudo systemctl enable --now redis-server
+run_logged redis-health redis-cli ping
 
 if [[ ! -x "$NODE_BIN" || ! -x "$NPM_BIN" ]]; then
     NODE_ARCHIVE=$(mktemp)
@@ -178,6 +180,11 @@ if [[ ! -f "$SHARED_DIR/backend.env" ]]; then
         printf 'CORS_ALLOW_ORIGINS=https://%s\n' "$DOMAIN"
         printf 'AI_GENERATION_ENABLED=false\n'
         printf 'BILLING_ENABLED=false\n'
+        printf 'SMTP_HOST=smtp.gmail.com\n'
+        printf 'SMTP_PORT=465\n'
+        printf 'SMTP_USE_SSL=true\n'
+        printf 'SMTP_FROM_NAME=KaizenAI\n'
+        printf 'REDIS_URL=redis://127.0.0.1:6379/0\n'
         printf 'UPLOAD_DIR=/opt/kaizenai/shared/uploads\n'
     } >"$SHARED_DIR/backend.env"
 fi

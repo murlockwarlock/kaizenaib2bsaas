@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Eye, Film, Grid3X3, Heart, ImageIcon, Loader2, Music, Sparkles } from 'lucide-react';
+import { Eye, Film, Grid3X3, Heart, ImageIcon, Loader2, Music } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useParams } from 'next/navigation';
 import { toast } from 'sonner';
@@ -191,7 +191,7 @@ export default function PublicProfilePage() {
             </div>
             <div>
               <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.24em] text-zinc-200">
-                <Sparkles className="h-3.5 w-3.5 text-[#ffd166]" />
+                <Grid3X3 className="h-3.5 w-3.5 text-[#ffd166]" />
                 {t('badge')}
               </div>
               <h1 className="text-3xl font-semibold tracking-tight text-white md:text-4xl">{displayName}</h1>

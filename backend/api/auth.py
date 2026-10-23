@@ -1,10 +1,7 @@
 import logging
 import random
-import smtplib
 import hashlib
 import json
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 
 import redis
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Form
@@ -37,11 +34,12 @@ from services.social_auth import (
     exchange_provider_code,
     resolve_or_create_social_user,
 )
+from services.email import send_html_email
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-redis_client = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+redis_client = redis.from_url(settings.REDIS_URL, decode_responses=True)
 
 DEFAULT_VERIFICATION_CREDITS = 100.0
 VERIFY_TTL = 600  # 10 minutes
@@ -64,57 +62,31 @@ def _generate_code(email: str) -> str:
 
 
 def _send_verification_email(email: str, code: str):
-    if not settings.SMTP_EMAIL or not settings.SMTP_PASSWORD:
-        logger.info("[DEV] Verification code for %s: %s", email, code)
-        return
-
-    msg = MIMEMultipart()
-    msg['From'] = settings.SMTP_EMAIL
-    msg['To'] = email
-    msg['Subject'] = 'Globus AI — verification code'
-
     body = f"""
     <div style="font-family:sans-serif;max-width:420px;margin:0 auto;padding:32px;background:#09090b;border-radius:16px;color:#fff;">
       <h2 style="margin:0 0 8px;font-size:22px;">Confirm your email</h2>
-      <p style="color:#a1a1aa;margin:0 0 24px;font-size:14px;">Enter this code in Globus AI to activate your account and get 100 free credits.</p>
+      <p style="color:#a1a1aa;margin:0 0 24px;font-size:14px;">Enter this code in KaizenAI to activate your account and get 100 free credits.</p>
       <div style="font-size:36px;font-weight:900;letter-spacing:10px;text-align:center;padding:20px;background:#18181b;border-radius:12px;border:1px solid #27272a;">
         {code}
       </div>
       <p style="color:#71717a;font-size:12px;margin:20px 0 0;text-align:center;">Code expires in 10 minutes. If you did not register, ignore this email.</p>
     </div>
     """
-    msg.attach(MIMEText(body, 'html'))
-
-    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-        server.login(settings.SMTP_EMAIL, settings.SMTP_PASSWORD)
-        server.sendmail(settings.SMTP_EMAIL, email, msg.as_string())
+    send_html_email(email, 'KaizenAI — verification code', body)
 
 
 def _send_password_reset_email(email: str, code: str):
-    if not settings.SMTP_EMAIL or not settings.SMTP_PASSWORD:
-        logger.info("[DEV] Password reset code for %s: %s", email, code)
-        return
-
-    msg = MIMEMultipart()
-    msg['From'] = settings.SMTP_EMAIL
-    msg['To'] = email
-    msg['Subject'] = 'Globus AI — password reset code'
-
     body = f"""
     <div style="font-family:sans-serif;max-width:420px;margin:0 auto;padding:32px;background:#09090b;border-radius:16px;color:#fff;">
       <h2 style="margin:0 0 8px;font-size:22px;">Reset your password</h2>
-      <p style="color:#a1a1aa;margin:0 0 24px;font-size:14px;">Enter this code in Globus AI to set a new password.</p>
+      <p style="color:#a1a1aa;margin:0 0 24px;font-size:14px;">Enter this code in KaizenAI to set a new password.</p>
       <div style="font-size:36px;font-weight:900;letter-spacing:10px;text-align:center;padding:20px;background:#18181b;border-radius:12px;border:1px solid #27272a;">
         {code}
       </div>
       <p style="color:#71717a;font-size:12px;margin:20px 0 0;text-align:center;">Code expires in 10 minutes. If you did not request a password reset, ignore this email.</p>
     </div>
     """
-    msg.attach(MIMEText(body, 'html'))
-
-    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-        server.login(settings.SMTP_EMAIL, settings.SMTP_PASSWORD)
-        server.sendmail(settings.SMTP_EMAIL, email, msg.as_string())
+    send_html_email(email, 'KaizenAI — password reset code', body)
 
 
 def _utcnow():

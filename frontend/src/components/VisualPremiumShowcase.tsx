@@ -2,7 +2,8 @@
 
 import Image from 'next/image';
 import type { LucideIcon } from 'lucide-react';
-import { ArrowUpRight, Sparkles } from 'lucide-react';
+import { ArrowUpRight } from 'lucide-react';
+import KaizenMark from '@/components/KaizenMark';
 
 type PremiumVisualItem = {
   id: string;
@@ -69,7 +70,7 @@ export default function VisualPremiumShowcase({
       <div className={`relative grid gap-5 md:gap-6 ${desktopLayoutClass}`.trim()}>
         <div>
           <div className="accent-pill inline-flex items-center gap-2 rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-white/85">
-            <Sparkles className="h-3.5 w-3.5 text-cyan-300" />
+            <KaizenMark className="h-3.5 w-3.5 text-cyan-300" />
             {badge}
           </div>
           <h2 className="section-title mt-4 max-w-2xl text-[clamp(1.75rem,3.6vw,3.15rem)] leading-[1.02] text-white">

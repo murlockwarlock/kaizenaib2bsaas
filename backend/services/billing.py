@@ -146,7 +146,7 @@ def build_checkout_quote(
         credits = max(int(plan.credits or 0), 0)
         if credits <= 0:
             raise ValueError("This plan does not provide credits")
-        item_name = plan.name_ru or plan.name_en or "Globus AI plan"
+        item_name = plan.name_ru or plan.name_en or "KaizenAI plan"
         description = f"{item_name} ({credits} credits)"
         recurring_available = bool(plan.is_recurring)
         recurring_days = get_recurring_days(plan)

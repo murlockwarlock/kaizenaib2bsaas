@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { motion } from 'framer-motion';
 import { Link } from '@/i18n/routing';
-import { Mail, KeyRound, Lock, ArrowRight, Loader2, Sparkles } from 'lucide-react';
+import { Mail, KeyRound, Lock, ArrowRight, Loader2 } from 'lucide-react';
+import KaizenMark from '@/components/KaizenMark';
 import { requestPasswordReset, resetPassword } from '@/lib/api';
 
 export default function ResetPasswordPage() {
@@ -67,7 +68,7 @@ export default function ResetPasswordPage() {
                 <div className="glass-strong overflow-hidden rounded-2xl shadow-2xl shadow-black/40">
                     <div className="px-8 pb-2 pt-8 text-center">
                         <div className="mb-5 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-blue-500 shadow-lg shadow-violet-500/25">
-                            <Sparkles className="h-7 w-7 text-white" />
+                            <KaizenMark className="h-7 w-7 text-white" />
                         </div>
                         <h1 className="mb-1.5 text-2xl font-bold text-white">{t('reset_title')}</h1>
                         <p className="text-sm text-zinc-400">{t('reset_subtitle')}</p>

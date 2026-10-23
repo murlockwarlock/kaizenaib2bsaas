@@ -3,7 +3,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8', extra='ignore')
 
-    PROJECT_NAME: str = "Globus AI"
+    PROJECT_NAME: str = "KaizenAI"
     API_V1_STR: str = "/api/v1"
 
     # Database (SQLite for dev, PostgreSQL for production)
@@ -32,6 +32,11 @@ class Settings(BaseSettings):
     # SMTP (Gmail App Password) — optional, falls back to console output
     SMTP_EMAIL: str = ""
     SMTP_PASSWORD: str = ""
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 465
+    SMTP_USE_SSL: bool = True
+    SMTP_FROM_NAME: str = "KaizenAI"
+    REDIS_URL: str = "redis://127.0.0.1:6379/0"
 
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""

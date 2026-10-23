@@ -16,13 +16,14 @@ import {
     Heart,
     Home,
     Image,
+    Layers3,
     LogOut,
     Music,
     Shield,
-    Sparkles,
     Video,
 } from 'lucide-react';
 import type { BillingPlanStatus } from '@/lib/types';
+import KaizenMark from '@/components/KaizenMark';
 
 const DesktopTopNav = dynamic(() => import('@/components/sidebar/DesktopTopNav'));
 const NotificationBell = dynamic(() => import('@/components/NotificationBell'), { ssr: false });
@@ -31,7 +32,7 @@ const VerifyEmailModal = dynamic(() => import('@/components/VerifyEmailModal').t
 const menuItems = [
     { key: 'home', href: '/', icon: Home },
     { key: 'explore', href: '/explore', icon: Compass },
-    { key: 'ai_effects', href: '/catalog', icon: Sparkles },
+    { key: 'ai_effects', href: '/catalog', icon: Layers3 },
     { key: 'video', href: '/video', icon: Video },
     { key: 'audio', href: '/audio?model=suno%2FV5', icon: Music },
     { key: 'images', href: '/images', icon: Image },
@@ -108,7 +109,7 @@ export default function Sidebar({
             <div className="flex items-center justify-between gap-4">
                 <Link href="/" className="flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[linear-gradient(145deg,#ff6b4a,#22c7b8)] shadow-[0_16px_40px_rgba(255,107,74,0.22)]">
-                        <Sparkles className="h-4.5 w-4.5 text-white" />
+                        <KaizenMark className="h-5 w-5 text-white" />
                     </div>
                     <div className="font-display text-[1.05rem] text-white">KaizenAI</div>
                 </Link>
@@ -194,7 +195,7 @@ export default function Sidebar({
             <div className="flex items-center justify-between gap-3">
                 <Link href="/" className="flex min-w-0 items-center gap-2.5">
                     <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[linear-gradient(145deg,#ff6b4a,#22c7b8)] shadow-[0_12px_28px_rgba(255,107,74,0.22)]">
-                        <Sparkles className="h-4 w-4 text-white" />
+                        <KaizenMark className="h-4.5 w-4.5 text-white" />
                     </div>
                     <div className="font-display truncate text-[1rem] text-white">KaizenAI</div>
                 </Link>

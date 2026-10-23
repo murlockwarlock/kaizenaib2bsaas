@@ -1,11 +1,13 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { getVideoPoster } from '@/lib/video-posters';
 
 type SmartPreviewVideoProps = {
   src: string;
   className?: string;
   preload?: 'none' | 'metadata' | 'auto';
+  poster?: string;
   mobileAutoPlay?: boolean;
   loop?: boolean;
   onError?: () => void;
@@ -15,6 +17,7 @@ export default function SmartPreviewVideo({
   src,
   className = '',
   preload = 'metadata',
+  poster,
   mobileAutoPlay = true,
   loop = true,
   onError,
@@ -69,7 +72,7 @@ export default function SmartPreviewVideo({
 
     node.pause();
     node.load();
-  }, [src]);
+  }, [isInView, src]);
 
   useEffect(() => {
     const node = ref.current;
@@ -97,11 +100,12 @@ export default function SmartPreviewVideo({
   return (
     <video
       ref={ref}
-      src={src}
+      src={isInView ? src : undefined}
+      poster={poster || getVideoPoster(src)}
       muted
       loop={loop}
       playsInline
-      preload={preload}
+      preload={isInView ? preload : 'none'}
       className={className}
       onError={onError}
     />

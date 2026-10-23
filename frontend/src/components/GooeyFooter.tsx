@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import { useVisualEffects } from '@/components/VisualEffectsContext';
 import type { SiteSettings } from '@/lib/types';
-import { Sparkles, Compass, Coins, Video, Music, ImageIcon } from 'lucide-react';
+import { Layers3, Compass, Coins, Video, Music, ImageIcon } from 'lucide-react';
 import { FaDiscord, FaInstagram, FaTelegram } from 'react-icons/fa';
 import { FaXTwitter } from 'react-icons/fa6';
 import styles from './GooeyFooter.module.css';
@@ -96,7 +96,7 @@ export default function GooeyFooter({ settings }: { settings: SiteSettings }) {
       title: t('footer_product'),
       items: [
         makeInternalItem(navT('pricing'), '/pricing', <Coins className="h-4 w-4" />),
-        makeInternalItem(navT('ai_effects'), '/catalog', <Sparkles className="h-4 w-4" />),
+        makeInternalItem(navT('ai_effects'), '/catalog', <Layers3 className="h-4 w-4" />),
         makeInternalItem(navT('explore'), '/explore', <Compass className="h-4 w-4" />),
       ],
     },

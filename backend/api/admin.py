@@ -1,10 +1,7 @@
 import hashlib
 import logging
 import secrets
-import smtplib
 from datetime import UTC, datetime, timedelta
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form, Body, Query
@@ -23,6 +20,7 @@ from core.config import settings
 from core.upload_security import save_validated_image_upload, save_validated_upload
 from services.kie_ai import get_kie_remaining_credits_sync
 from services.billing import PRODUCT_TYPE_PLAN, round_money
+from services.email import send_html_email
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -58,15 +56,6 @@ def _build_tracking_url(link: UTMTrackingLink) -> str:
 
 
 def _send_plan_invite_email(email: str, *, plan_name: str, claim_url: str, expires_at: datetime | None):
-    if not settings.SMTP_EMAIL or not settings.SMTP_PASSWORD:
-        logger.info("[DEV] Plan invite for %s (%s): %s", email, plan_name, claim_url)
-        return
-
-    msg = MIMEMultipart()
-    msg["From"] = settings.SMTP_EMAIL
-    msg["To"] = email
-    msg["Subject"] = f"Globus AI — access to {plan_name}"
-
     expiry_copy = ""
     if expires_at:
         expiry_copy = f"<p style=\"color:#71717a;font-size:12px;margin:18px 0 0;text-align:center;\">The link expires on {expires_at.strftime('%Y-%m-%d %H:%M UTC')}.</p>"
@@ -82,11 +71,7 @@ def _send_plan_invite_email(email: str, *, plan_name: str, claim_url: str, expir
       {expiry_copy}
     </div>
     """
-    msg.attach(MIMEText(body, "html"))
-
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-        server.login(settings.SMTP_EMAIL, settings.SMTP_PASSWORD)
-        server.sendmail(settings.SMTP_EMAIL, email, msg.as_string())
+    send_html_email(email, f"KaizenAI — access to {plan_name}", body)
 
 
 def _serialize_plan_invite(invite: PlanInvite, *, plan: PricingPlan | None, used_by_email: str | None = None) -> dict:
@@ -885,7 +870,7 @@ def create_plan_invites(
         try:
             _send_plan_invite_email(
                 invite.email,
-                plan_name=plan.name_ru or plan.name_en or "Globus AI plan",
+                plan_name=plan.name_ru or plan.name_en or "KaizenAI plan",
                 claim_url=claim_url,
                 expires_at=expires_at,
             )
@@ -964,7 +949,7 @@ def reissue_plan_invite(
     try:
         _send_plan_invite_email(
             invite.email,
-            plan_name=plan.name_ru or plan.name_en or "Globus AI plan",
+            plan_name=plan.name_ru or plan.name_en or "KaizenAI plan",
             claim_url=claim_url,
             expires_at=invite.expires_at,
         )

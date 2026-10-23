@@ -10,11 +10,12 @@ import {
   ChevronRight,
   Coins,
   Compass,
+  FolderOpen,
   Home,
   Image as ImageIcon,
+  Layers3,
   LogOut,
   Music,
-  Sparkles,
   Video,
   X,
 } from 'lucide-react';
@@ -27,6 +28,7 @@ import { useAuth } from '@/components/AuthContext';
 import type { HomeSocialLink, NavCard, SectionCard, FeedCardItem, SupportedLocale } from '@/components/home/home-presenter';
 import type { Banner, FAQ, SiteSettings } from '@/lib/types';
 import { getUserAvatarUrl, getUserDisplayName, getUserInitials } from '@/lib/user-presenter';
+import KaizenMark from '@/components/KaizenMark';
 
 const HomeLowerSections = dynamic(() => import('@/components/home/HomeLowerSections'));
 const NotificationBell = dynamic(() => import('@/components/NotificationBell'), { ssr: false });
@@ -493,7 +495,7 @@ export default function DesktopHomeLanding({
           <div className="hidden items-center justify-between gap-3 lg:flex">
             <Link href="/" className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[linear-gradient(145deg,#ff6b4a,#22c7b8)] shadow-[0_16px_40px_rgba(255,107,74,0.22)]">
-                <Sparkles className="h-4.5 w-4.5 text-white" />
+                <KaizenMark className="h-5 w-5 text-white" />
               </div>
               <div className="font-display text-[1.05rem] text-white">KaizenAI</div>
             </Link>
@@ -649,7 +651,7 @@ export default function DesktopHomeLanding({
             <div className="flex items-center justify-between gap-3">
               <Link href="/" className="flex min-w-0 items-center gap-2.5">
                 <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[linear-gradient(145deg,#ff6b4a,#22c7b8)] shadow-[0_12px_28px_rgba(255,107,74,0.22)]">
-                  <Sparkles className="h-4 w-4 text-white" />
+                  <KaizenMark className="h-4.5 w-4.5 text-white" />
                 </div>
                 <div className="font-display truncate text-[1rem] text-white">KaizenAI</div>
               </Link>
@@ -720,7 +722,7 @@ export default function DesktopHomeLanding({
                 { href: '/images', label: copy.nav.images, icon: ImageIcon },
                 { href: '/video', label: copy.nav.video, icon: Video },
                 { href: '/audio?model=suno%2FV5', label: copy.nav.audio, icon: Music },
-                { href: '/catalog', label: copy.nav.tools, icon: Sparkles },
+                { href: '/catalog', label: copy.nav.tools, icon: Layers3 },
                 { href: '/pricing', label: copy.nav.pricing, icon: Coins },
               ].map((item) => {
                 const Icon = item.icon;
@@ -743,7 +745,7 @@ export default function DesktopHomeLanding({
                     href="/my-creations"
                     className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-2 text-xs font-medium text-zinc-400 transition-colors hover:bg-white/[0.05] hover:text-white"
                   >
-                    <Sparkles className="h-3.5 w-3.5" />
+                    <FolderOpen className="h-3.5 w-3.5" />
                     {locale === 'ru' ? 'Мои проекты' : 'My Creations'}
                   </Link>
                   <Link
@@ -769,7 +771,7 @@ export default function DesktopHomeLanding({
           <div className="relative z-10 px-5 py-8 sm:px-6 sm:py-10 md:px-8 md:py-12 lg:px-10 lg:py-16">
             <div className="max-w-2xl">
               <div className="accent-pill inline-flex rounded-full px-3.5 py-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-white/88">
-                <Sparkles className="mr-2 h-3.5 w-3.5 text-[#ffd166]" />
+                <KaizenMark className="mr-2 h-3.5 w-3.5 text-[#ffd166]" />
                 {copy.hero.eyebrow}
               </div>
               <h1 className="section-title mt-6 text-[2.45rem] leading-[0.96] text-white sm:text-[3rem] md:text-[3.5rem] lg:mt-7 lg:text-[4.2rem]">

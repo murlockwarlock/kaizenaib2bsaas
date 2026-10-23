@@ -6,9 +6,10 @@ import { Link } from '@/i18n/routing';
 import { login as apiLogin } from '@/lib/api';
 import { useAuth } from '@/components/AuthContext';
 import { motion } from 'framer-motion';
-import { Mail, Lock, ArrowRight, Loader2, Sparkles } from 'lucide-react';
+import { Mail, Lock, ArrowRight, Loader2 } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import SocialAuthButtons from '@/components/SocialAuthButtons';
+import KaizenMark from '@/components/KaizenMark';
 
 export default function LoginPage() {
     const t = useTranslations('Auth');
@@ -64,7 +65,7 @@ export default function LoginPage() {
                     {/* Header */}
                     <div className="px-8 pt-8 pb-2 text-center">
                         <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-500 to-blue-500 mb-5 shadow-lg shadow-violet-500/25">
-                            <Sparkles className="w-7 h-7 text-white" />
+                            <KaizenMark className="h-7 w-7 text-white" />
                         </div>
                         <h1 className="text-2xl font-bold text-white mb-1.5">{t('login_title')}</h1>
                         <p className="text-sm text-zinc-400">{t('welcome_subtitle')}</p>

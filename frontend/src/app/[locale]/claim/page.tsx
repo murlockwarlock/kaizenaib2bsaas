@@ -6,7 +6,8 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import { claimPlanInvite, resolvePlanInvite } from '@/lib/api';
 import { useAuth } from '@/components/AuthContext';
-import { CheckCircle2, Loader2, Mail, Sparkles } from 'lucide-react';
+import { CheckCircle2, Loader2, Mail } from 'lucide-react';
+import KaizenMark from '@/components/KaizenMark';
 
 type ResolveState = {
     email: string;
@@ -105,7 +106,7 @@ export default function ClaimInvitePage() {
 
             <div className="w-full max-w-[560px] relative z-10 rounded-[2rem] border border-white/10 bg-zinc-950/75 p-8 shadow-2xl shadow-black/40">
                 <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-cyan-500 shadow-lg shadow-violet-500/20">
-                    <Sparkles className="h-7 w-7 text-white" />
+                    <KaizenMark className="h-7 w-7 text-white" />
                 </div>
 
                 <h1 className="mt-6 text-3xl font-semibold text-white">{t('claim_title')}</h1>

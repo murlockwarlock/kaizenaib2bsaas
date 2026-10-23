@@ -4,10 +4,11 @@ import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
 import useEmblaCarousel from 'embla-carousel-react';
-import { ArrowRight, ChevronDown, ChevronLeft, ChevronRight, Compass, Music2, Sparkles, Video } from 'lucide-react';
+import { ArrowRight, ChevronDown, ChevronLeft, ChevronRight, Compass, Layers3, Music2, Video } from 'lucide-react';
 
 import { Link } from '@/i18n/routing';
 import type { Banner, FAQ, SiteSettings } from '@/lib/types';
+import { getVideoPoster } from '@/lib/video-posters';
 
 const GooeyFooter = dynamic(() => import('@/components/GooeyFooter'));
 
@@ -73,8 +74,9 @@ function LazyVideo({
   src,
   className,
   autoPlayEnabled = true,
+  poster,
   ...rest
-}: React.ComponentPropsWithoutRef<'video'> & { src: string; autoPlayEnabled?: boolean }) {
+}: React.ComponentPropsWithoutRef<'video'> & { src: string; autoPlayEnabled?: boolean; poster?: string }) {
   const ref = useRef<HTMLVideoElement>(null);
   const [isVisible, setIsVisible] = useState(false);
 
@@ -107,6 +109,7 @@ function LazyVideo({
     <video
       ref={ref}
       src={isVisible ? src : undefined}
+      poster={poster || getVideoPoster(src)}
       className={className}
       autoPlay={autoPlayEnabled && isVisible}
       muted
@@ -154,7 +157,7 @@ function FeedCard({
           )
         ) : (
           <div className="flex h-full items-end p-5">
-            <Sparkles className="h-6 w-6 text-white/76" />
+            <Layers3 className="h-6 w-6 text-white/76" />
           </div>
         )}
       </div>
@@ -177,7 +180,7 @@ function CompactSectionCardView({
   const secondaryImage = card.imageBefore && !isVideoSrc(card.imageBefore) ? card.imageBefore : null;
   const mediaSrc = primaryImage || secondaryImage || '';
   const imagePositionClass = variant === 'audio' || variant === 'tools' ? 'bg-top' : 'bg-center';
-  const FallbackIcon = variant === 'audio' ? Music2 : variant === 'tools' ? Sparkles : Video;
+  const FallbackIcon = variant === 'audio' ? Music2 : variant === 'tools' ? Layers3 : Video;
 
   return (
     <Link

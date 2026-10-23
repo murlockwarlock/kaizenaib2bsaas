@@ -1,7 +1,8 @@
 'use client';
 
-import { Loader2, Sparkles } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import KaizenMark from '@/components/KaizenMark';
 
 export default function RouteLoadingScreen() {
   return (
@@ -17,7 +18,7 @@ export default function RouteLoadingScreen() {
         className="relative z-10 w-full max-w-sm rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(11,14,20,0.94),rgba(7,10,16,0.88))] px-6 py-7 text-center shadow-[0_28px_80px_rgba(3,5,9,0.5)] backdrop-blur-2xl"
       >
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[linear-gradient(145deg,#ff6b4a,#22c7b8)] shadow-[0_16px_40px_rgba(255,107,74,0.22)]">
-          <Sparkles className="h-6 w-6 text-white" />
+          <KaizenMark className="h-6 w-6 text-white" />
         </div>
 
         <div className="mt-5 text-[11px] font-semibold uppercase tracking-[0.28em] text-zinc-500">

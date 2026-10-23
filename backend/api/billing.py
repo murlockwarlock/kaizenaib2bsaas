@@ -441,7 +441,7 @@ async def process_due_subscriptions(
             credits_rate_per_100_snapshot=0.0,
             currency=subscription.currency,
             credits=subscription.credits,
-            description=f"Recurring charge: {plan.name_ru or plan.name_en or 'Globus AI'}",
+            description=f"Recurring charge: {plan.name_ru or plan.name_en or 'KaizenAI'}",
             return_url="",
             expires_at=utcnow() + timedelta(minutes=30),
             save_payment_method=False,

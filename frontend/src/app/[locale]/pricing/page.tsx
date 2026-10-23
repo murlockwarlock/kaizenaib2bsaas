@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowRight, Check, Coins, RefreshCcw, Sparkles } from 'lucide-react';
+import { ArrowRight, Check, Coins, Layers3, RefreshCcw } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/routing';
 import { apiClient } from '@/lib/api';
@@ -157,7 +157,7 @@ export default function PricingPage() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,107,74,0.16),transparent_24%),radial-gradient(circle_at_bottom_right,rgba(34,199,184,0.14),transparent_28%)]" />
         <div className="relative">
           <div className="accent-pill inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-white/88">
-            <Sparkles className="h-3.5 w-3.5 text-[#ffd166]" />
+            <Layers3 className="h-3.5 w-3.5 text-[#ffd166]" />
             {t('eyebrow')}
           </div>
           <h1 className="section-title mt-5 max-w-4xl text-[clamp(2.4rem,6vw,4.8rem)] leading-[0.98] text-white">
@@ -274,7 +274,7 @@ export default function PricingPage() {
                   <div>
                     {plan.badge ? (
                       <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/88">
-                        <Sparkles className="h-3.5 w-3.5 text-[#ffd166]" />
+                        <Layers3 className="h-3.5 w-3.5 text-[#ffd166]" />
                         {plan.badge}
                       </div>
                     ) : null}

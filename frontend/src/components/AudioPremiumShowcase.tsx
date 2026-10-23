@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import type { LucideIcon } from 'lucide-react';
-import { ArrowUpRight, Sparkles } from 'lucide-react';
+import { ArrowUpRight, Music2 } from 'lucide-react';
 import { FeaturedAudioPlayerProvider } from '@/components/FeaturedAudioPlayerContext';
 import FeaturedAudioPlayer from '@/components/ui/featured-audio-player';
 import AudioShowcaseCard from '@/components/ui/audio-showcase-card';
@@ -64,7 +64,7 @@ export default function AudioPremiumShowcase({
         <div className="relative grid gap-5 md:gap-6 xl:grid-cols-[minmax(0,1.08fr)_minmax(340px,0.92fr)] xl:items-start">
           <div>
             <div className="accent-pill inline-flex items-center gap-2 rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-white/85">
-              <Sparkles className="h-3.5 w-3.5 text-[#ffd166]" />
+              <Music2 className="h-3.5 w-3.5 text-[#ffd166]" />
               {badge}
             </div>
             <h2 className="section-title mt-5 max-w-3xl text-[clamp(2.2rem,5vw,4.6rem)] leading-[0.98] text-white">

@@ -5,7 +5,6 @@ import {
   Copy,
   Globe,
   Image as ImageIcon,
-  Sparkles,
   Upload,
   Wand2,
 } from 'lucide-react';
@@ -215,7 +214,7 @@ export default function ImageShowcasePanel({
 
       <div className="mt-12">
         <div className="mb-6 flex items-center gap-2">
-          <Sparkles className="h-5 w-5 text-violet-400" />
+          <ImageIcon className="h-5 w-5 text-violet-400" />
           <h3 className="text-lg font-bold tracking-wide text-white">{title}</h3>
         </div>
 
