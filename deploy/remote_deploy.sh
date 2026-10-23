@@ -291,11 +291,12 @@ for attempt in {1..30}; do
     sleep 2
 done
 
-if [[ ! -s "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" || ! -s "/etc/letsencrypt/live/$DOMAIN/privkey.pem" ]]; then
+if ! sudo test -s "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" || ! sudo test -s "/etc/letsencrypt/live/$DOMAIN/privkey.pem"; then
     sudo certbot certonly --webroot -w /var/www/certbot -d "$DOMAIN" --non-interactive --agree-tos --email "$CERTBOT_EMAIL" --keep-until-expiring >>"$DEPLOY_LOG" 2>&1
 fi
 
-[[ -s "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" && -s "/etc/letsencrypt/live/$DOMAIN/privkey.pem" ]]
+sudo test -s "/etc/letsencrypt/live/$DOMAIN/fullchain.pem"
+sudo test -s "/etc/letsencrypt/live/$DOMAIN/privkey.pem"
 sed "s/__SITE_DOMAIN__/$DOMAIN/g" "$RELEASE_DIR/deploy/nginx-https.conf.template" >"$STAGING_DIR/kaizenai-https.conf"
 sudo install -m 0644 "$STAGING_DIR/kaizenai-https.conf" "$NGINX_AVAILABLE"
 sudo nginx -t
