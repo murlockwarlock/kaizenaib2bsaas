@@ -249,6 +249,9 @@ sudo systemctl enable --now nginx
 sudo systemctl reload nginx
 
 PREVIOUS_RELEASE=$(readlink -f "$CURRENT_LINK" 2>/dev/null || true)
+if [[ "$PREVIOUS_RELEASE" == "$CURRENT_LINK" || ! -d "$PREVIOUS_RELEASE" ]]; then
+    PREVIOUS_RELEASE=""
+fi
 rm -f "$NEXT_LINK"
 ln -s "$RELEASE_DIR" "$NEXT_LINK"
 mv -Tf "$NEXT_LINK" "$CURRENT_LINK"

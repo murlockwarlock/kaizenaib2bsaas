@@ -1,10 +1,22 @@
 # KaizenAI
 
-KaizenAI is a web application for exploring and creating image, video, and audio content through one interface.
+AI SaaS web application for image, video, and audio tools.
 
-The `frontend` directory contains the Next.js application. The `backend` directory contains the FastAPI service, authentication, public content API, database models, billing code, and provider integrations. The `deploy` directory contains the production release script and service configuration.
+## Stack
 
-The example images and videos in `frontend/public/examples` are part of the public product showcase. User accounts, generated files, databases, provider credentials, SMTP credentials, logs, and other runtime data stay outside Git.
+Frontend: Next.js 16, React 19, TypeScript, Tailwind CSS.
+
+Backend: FastAPI, SQLAlchemy, Alembic, SQLite.
+
+Production: Nginx, systemd, Node.js 22, Python 3.12.
+
+## Structure
+
+`frontend` contains the web application.
+
+`backend` contains the API, authentication, database models, public content, billing, and provider integrations.
+
+`deploy` contains the production deploy script and service configuration.
 
 ## Local setup
 
@@ -17,11 +29,13 @@ npm ci
 npm run dev
 ```
 
-To run the backend separately, create its environment file from `backend/.env.example`, create a virtual environment, install `backend/requirements.txt`, and start Uvicorn from the `backend` directory.
+To run the backend separately, create an environment file from `backend/.env.example`, install `backend/requirements.txt`, and start Uvicorn from `backend`.
 
 ## Production deployment
 
-Copy `deploy/.env.example` to `deploy/.env` and set the SSH connection values. The deploy script requires a clean Git worktree. It packages the exact commit, verifies the package checksum and file manifest on the server, installs dependencies there, runs the database migration script, builds the frontend there, switches the release symlink, restarts both services, configures Nginx and checks HTTPS.
+Copy `deploy/.env.example` to `deploy/.env` and set the SSH connection values.
+
+The deploy script packages the exact Git commit, installs dependencies, runs migrations, builds on the server, switches the release, configures Nginx, and checks the services.
 
 ```bash
 cp deploy/.env.example deploy/.env
