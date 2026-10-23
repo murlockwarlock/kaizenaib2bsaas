@@ -52,7 +52,8 @@ tar -C "$TEMP_DIR/tree" -czf "$TEMP_DIR/bundle.tar.gz" .
 BUNDLE_SHA=$(shasum -a 256 "$TEMP_DIR/bundle.tar.gz" | awk '{print $1}')
 
 SSH_OPTIONS=(-i "$DEPLOY_KEY" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p "$DEPLOY_PORT")
+SCP_OPTIONS=(-i "$DEPLOY_KEY" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -P "$DEPLOY_PORT")
 
-scp "${SSH_OPTIONS[@]}" "$ROOT_DIR/deploy/remote_deploy.sh" "$DEPLOY_USER@$DEPLOY_HOST:$REMOTE_SCRIPT"
-scp "${SSH_OPTIONS[@]}" "$TEMP_DIR/bundle.tar.gz" "$DEPLOY_USER@$DEPLOY_HOST:$REMOTE_BUNDLE"
+scp "${SCP_OPTIONS[@]}" "$ROOT_DIR/deploy/remote_deploy.sh" "$DEPLOY_USER@$DEPLOY_HOST:$REMOTE_SCRIPT"
+scp "${SCP_OPTIONS[@]}" "$TEMP_DIR/bundle.tar.gz" "$DEPLOY_USER@$DEPLOY_HOST:$REMOTE_BUNDLE"
 ssh "${SSH_OPTIONS[@]}" "$DEPLOY_USER@$DEPLOY_HOST" bash "$REMOTE_SCRIPT" "$REMOTE_BUNDLE" "$REVISION" "$BUNDLE_SHA" "$DEPLOY_APP_DIR" "$DEPLOY_DOMAIN" "$DEPLOY_CERTBOT_EMAIL"
