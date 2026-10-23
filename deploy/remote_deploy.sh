@@ -96,6 +96,23 @@ run_logged() {
     fi
 }
 
+ensure_swap() {
+    if sudo swapon --show=NAME --noheadings | grep -Fxq /swapfile; then
+        return
+    fi
+    if [[ -e /swapfile ]]; then
+        printf 'An existing inactive /swapfile was found\n' >&2
+        return 1
+    fi
+    sudo fallocate -l 2G /swapfile
+    sudo chmod 0600 /swapfile
+    sudo mkswap /swapfile >>"$DEPLOY_LOG" 2>&1
+    sudo swapon /swapfile
+    if ! sudo grep -Fqx '/swapfile none swap sw 0 0' /etc/fstab; then
+        printf '%s\n' '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab >>"$DEPLOY_LOG"
+    fi
+}
+
 if [[ ! -f "$BUNDLE_PATH" ]]; then
     printf 'Bundle is missing\n' >&2
     exit 1
@@ -127,6 +144,7 @@ fi
 
 run_logged packages sudo apt-get update
 run_logged packages sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates certbot curl nginx openssl python3 python3-pip python3-venv build-essential sqlite3 xz-utils
+ensure_swap
 
 if [[ ! -x "$NODE_BIN" || ! -x "$NPM_BIN" ]]; then
     NODE_ARCHIVE=$(mktemp)
@@ -196,7 +214,7 @@ rm -f "$RELEASE_DIR/backend/.env"
 
 ln -sfn "$SHARED_DIR/frontend.env" "$RELEASE_DIR/frontend/.env.production"
 run_logged frontend-dependencies env PATH="$NODE_ROOT/bin:$PATH" "$NPM_BIN" --prefix "$RELEASE_DIR/frontend" ci --no-audit --no-fund
-run_logged frontend-build env PATH="$NODE_ROOT/bin:$PATH" "$NPM_BIN" --prefix "$RELEASE_DIR/frontend" run build
+run_logged frontend-build env NODE_OPTIONS=--max-old-space-size=1536 PATH="$NODE_ROOT/bin:$PATH" "$NPM_BIN" --prefix "$RELEASE_DIR/frontend" run build
 rm -f "$RELEASE_DIR/frontend/.env.production"
 
 SYSTEMD_BACKUP_DIR="$BACKUP_DIR/systemd"
