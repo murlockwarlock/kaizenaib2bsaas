@@ -4,7 +4,7 @@ import {
   Coins,
   Layers3,
 } from 'lucide-react';
-import { SUNO_BENEFIT_CONFIG, SUNO_PRESET_CONFIG } from '@/components/SunoSpotlight';
+import { SUNO_BENEFIT_CONFIG, SUNO_PRESET_CONFIG } from '@/lib/suno-config';
 import { EFFECT_HERO_PREVIEW_IDS, EFFECT_TOOLS } from '@/lib/effect-tools';
 import { VIDEO_SHOWCASE_EXAMPLES, VIDEO_SHOWCASE_FEATURED_MODEL_IDS } from '@/lib/video-showcase-examples';
 import { getCatalogPageData } from '@/lib/server/catalog-content';
