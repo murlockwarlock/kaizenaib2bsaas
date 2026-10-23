@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { useMemo } from 'react';
 import { Pause, Play, ArrowUpRight, Music2 } from 'lucide-react';
 import { getModelDisplayName } from '@/lib/model-presenter';
+import { getAudioCover } from '@/lib/audio-covers';
 import { Link } from '@/i18n/routing';
 import type { FeaturedAudio } from '@/lib/types';
 import { useFeaturedAudioPlayer } from '@/components/FeaturedAudioPlayerContext';
@@ -36,6 +37,8 @@ export default function FeaturedAudioPlayer({
 }: FeaturedAudioPlayerProps) {
   const { isPlaying, currentTime, duration, toggleTrack, seek, isCurrentTrack } = useFeaturedAudioPlayer();
   const isActive = isCurrentTrack(item.id);
+  const playlistIndex = playlist.findIndex((track) => track.id === item.id);
+  const coverImage = item.cover_image_url || getAudioCover(playlistIndex >= 0 ? playlistIndex : item.id);
   const displayCurrentTime = isActive ? currentTime : 0;
   const displayDuration = isActive ? duration : 0;
 
@@ -61,9 +64,9 @@ export default function FeaturedAudioPlayer({
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,107,74,0.14),transparent_26%),radial-gradient(circle_at_bottom_right,rgba(34,199,184,0.12),transparent_30%)] opacity-90" />
       <div className="relative flex flex-col gap-4 sm:flex-row">
         <div className="relative h-48 w-full shrink-0 overflow-hidden rounded-[1.25rem] border border-white/8 bg-zinc-950 sm:h-28 sm:w-28 sm:rounded-[1.35rem]">
-          {item.cover_image_url ? (
+          {coverImage ? (
             <Image
-              src={item.cover_image_url}
+              src={coverImage}
               alt={item.title}
               fill
               unoptimized

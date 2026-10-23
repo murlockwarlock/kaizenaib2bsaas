@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#0d7787"/>
+      <stop offset=".5" stop-color="#15263a"/>
+      <stop offset="1" stop-color="#e35d52"/>
+    </linearGradient>
+    <linearGradient id="beam" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#fff0b0" stop-opacity=".7"/>
+      <stop offset="1" stop-color="#fff0b0" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="800" fill="url(#bg)"/>
+  <path d="M-80 760 580 80l700 720H-80Z" fill="url(#beam)" opacity=".18"/>
+  <path d="M72 518h154l42-188 63 330 72-258 54 116h170" stroke="#fff0b0" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M638 522h120l36-122 60 228 54-172 44 66h190" stroke="#0a1620" stroke-opacity=".6" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="957" cy="182" r="112" stroke="#fff0b0" stroke-opacity=".34" stroke-width="2"/>
+  <circle cx="957" cy="182" r="66" stroke="#fff0b0" stroke-opacity=".62" stroke-width="3"/>
+  <path d="m957 116 18 49 49 17-49 18-18 49-18-49-49-18 49-17 18-49Z" fill="#fff0b0" fill-opacity=".72"/>
+</svg>

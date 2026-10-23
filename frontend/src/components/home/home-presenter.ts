@@ -3,7 +3,8 @@ import type { ReactNode } from 'react';
 import { EFFECT_TOOLS } from '@/lib/effect-tools';
 import { buildImageDirectory, buildVideoDirectory } from '@/lib/home-model-directory';
 import { getModelGuide } from '@/lib/model-presenter';
-import type { FeaturedAudio, GenerationExample, GenerationTask, SiteSettings } from '@/lib/types';
+import { getAudioCover } from '@/lib/audio-covers';
+import type { GenerationExample, GenerationTask, SiteSettings } from '@/lib/types';
 import { VIDEO_MODEL_OPTIONS } from '@/lib/video-models';
 
 export type SupportedLocale = 'ru' | 'en';
@@ -121,13 +122,11 @@ function inferExampleMediaKind(example: GenerationExample) {
 export function buildHomeViewModel({
   locale,
   examples,
-  featuredAudio,
   settings,
   tasks,
 }: {
   locale: SupportedLocale;
   examples: GenerationExample[];
-  featuredAudio: FeaturedAudio[];
   settings: SiteSettings;
   tasks: GenerationTask[];
 }) {
@@ -175,13 +174,12 @@ export function buildHomeViewModel({
 
   const audioCards: SectionCard[] = AUDIO_MODELS.map((entry, index) => {
     const guide = getModelGuide(entry.id, locale);
-    const featured = featuredAudio[index % Math.max(featuredAudio.length, 1)];
     return {
       id: entry.id,
       title: guide.title,
       description: guide.summary,
       href: entry.href,
-      image: featured?.cover_image_url || null,
+      image: getAudioCover(index),
       chips: [...entry.chips[locale]],
     };
   });
@@ -291,8 +289,7 @@ export function buildHomeViewModel({
 
   const dropdownAudio: NavCard[] = AUDIO_MODELS.map((entry, index) => {
     const guide = getModelGuide(entry.id, locale);
-    const cover = featuredAudio[index % Math.max(featuredAudio.length, 1)]?.cover_image_url || null;
-    return { id: entry.id, title: guide.title, description: guide.summary, href: entry.href, image: cover };
+    return { id: entry.id, title: guide.title, description: guide.summary, href: entry.href, image: getAudioCover(index) };
   });
 
   const socials: HomeSocialLink[] = [

@@ -5,6 +5,7 @@ import { AudioWaveform, Copy, Globe, Music } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import AudioPremiumShowcase from '@/components/AudioPremiumShowcase';
+import { AUDIO_COVER_PATHS } from '@/lib/audio-covers';
 import type { FeaturedAudio } from '@/lib/types';
 
 export type AudioMode = 'tts' | 'music' | 'dialogue';
@@ -44,18 +45,18 @@ type DialoguePreset = {
 
 const EXAMPLES: AudioExample[] = [
   {
-    url: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=900',
+    url: AUDIO_COVER_PATHS[2],
     prompt: 'A calm, professional voice-over for a luxury travel documentary about Swiss Alps.',
     mode: 'tts',
     voice: 'Roger',
   },
   {
-    url: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=900',
+    url: AUDIO_COVER_PATHS[0],
     prompt: 'Energetic and upbeat radio anthem for a new summer music festival with crowd chants and bright synths.',
     mode: 'music',
   },
   {
-    url: 'https://images.unsplash.com/photo-1493225255756-d9584f8606e9?auto=format&fit=crop&w=900',
+    url: AUDIO_COVER_PATHS[3],
     prompt: 'Two characters arguing about a missing map in a dark, mysterious forest.',
     mode: 'dialogue',
     dialogues: [
@@ -64,12 +65,12 @@ const EXAMPLES: AudioExample[] = [
     ],
   },
   {
-    url: 'https://images.unsplash.com/photo-1516280440614-37939bbacd81?auto=format&fit=crop&w=900',
+    url: AUDIO_COVER_PATHS[1],
     prompt: 'Atmospheric indie synth track for a rainy night drive through a futuristic city.',
     mode: 'music',
   },
   {
-    url: 'https://images.unsplash.com/photo-1485579149621-3123dd979885?auto=format&fit=crop&w=900',
+    url: AUDIO_COVER_PATHS[4],
     prompt: 'Warm podcast intro voice with confident pacing and a premium modern brand tone.',
     mode: 'tts',
     voice: 'Roger',
@@ -97,7 +98,7 @@ export default function AudioShowcasePanel({
       icon: Music,
       title: t('premium_case_lyrics_title'),
       description: t('premium_case_lyrics_desc'),
-      image: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?auto=format&fit=crop&w=1200',
+      image: AUDIO_COVER_PATHS[0],
       chips: [t('premium_case_lyrics_chip_1'), t('premium_case_lyrics_chip_2'), t('premium_case_lyrics_chip_3')],
       promptPreview: t('premium_case_lyrics_prompt'),
       apply: () =>
@@ -115,7 +116,7 @@ export default function AudioShowcasePanel({
       icon: AudioWaveform,
       title: t('premium_case_sfx_title'),
       description: t('premium_case_sfx_desc'),
-      image: 'https://images.unsplash.com/photo-1516280440614-37939bbacd81?auto=format&fit=crop&w=1200',
+      image: AUDIO_COVER_PATHS[1],
       chips: [t('premium_case_sfx_chip_1'), t('premium_case_sfx_chip_2'), t('premium_case_sfx_chip_3')],
       promptPreview: t('premium_case_sfx_prompt'),
       apply: () =>
@@ -133,7 +134,7 @@ export default function AudioShowcasePanel({
       icon: Globe,
       title: t('premium_case_tts_title'),
       description: t('premium_case_tts_desc'),
-      image: 'https://images.unsplash.com/photo-1487180144351-b8472da7d491?auto=format&fit=crop&w=1200',
+      image: AUDIO_COVER_PATHS[2],
       chips: [t('premium_case_tts_chip_1'), t('premium_case_tts_chip_2'), t('premium_case_tts_chip_3')],
       promptPreview: t('premium_case_tts_prompt'),
       apply: () =>
@@ -148,7 +149,7 @@ export default function AudioShowcasePanel({
       icon: Copy,
       title: t('premium_case_cover_title'),
       description: t('premium_case_cover_desc'),
-      image: 'https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=1200',
+      image: AUDIO_COVER_PATHS[4],
       chips: [t('premium_case_cover_chip_1'), t('premium_case_cover_chip_2'), t('premium_case_cover_chip_3')],
       promptPreview: t('premium_case_cover_prompt'),
       apply: () =>

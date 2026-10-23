@@ -3,7 +3,6 @@ import 'server-only';
 import type {
   Banner,
   FAQ,
-  FeaturedAudio,
   GenerationExample,
   GenerationTask,
   SiteSettings,
@@ -16,7 +15,6 @@ type HomePageData = {
   banners: Banner[];
   faqs: FAQ[];
   examples: GenerationExample[];
-  featuredAudio: FeaturedAudio[];
   settings: SiteSettings;
   tasks: GenerationTask[];
 };
@@ -42,20 +40,18 @@ export async function getPublicSettings(): Promise<SiteSettings> {
 }
 
 export async function getHomePageData(): Promise<HomePageData> {
-  const [banners, faqs, rawExamples, settings, rawTasks, featuredAudio] = await Promise.all([
+  const [banners, faqs, rawExamples, settings, rawTasks] = await Promise.all([
     getPublicJson<Banner[]>('banners', []),
     getPublicJson<FAQ[]>('faqs', []),
     getPublicJson<GenerationExample[]>('examples', [], true),
     getPublicSettings(),
     getPublicJson<GenerationTask[]>('tasks', [], true),
-    getPublicJson<FeaturedAudio[]>('featured-audio', []),
   ]);
 
   return {
     banners,
     faqs,
     examples: rawExamples.filter((example) => example.category !== 'audio'),
-    featuredAudio,
     settings,
     tasks: rawTasks.filter((task) => task.category !== 'audio'),
   };

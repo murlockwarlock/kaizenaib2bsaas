@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#ff765e"/>
+      <stop offset=".48" stop-color="#242b43"/>
+      <stop offset="1" stop-color="#0a9b94"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientTransform="translate(860 110) rotate(128) scale(620 700)">
+      <stop stop-color="#ffe0a1" stop-opacity=".7"/>
+      <stop offset="1" stop-color="#ffe0a1" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="800" fill="#0b111b"/>
+  <rect width="1200" height="800" fill="url(#bg)" opacity=".9"/>
+  <rect width="1200" height="800" fill="url(#glow)"/>
+  <path d="M-40 546C90 438 178 618 298 506s204-174 329-22 219 181 333 50 201-123 320-12" stroke="#fff4dc" stroke-opacity=".78" stroke-width="12"/>
+  <path d="M-50 612C77 506 175 688 297 573s207-178 332-24 219 181 333 49 206-125 333-4" stroke="#08111d" stroke-opacity=".55" stroke-width="4"/>
+  <circle cx="950" cy="178" r="94" fill="#fff4dc" fill-opacity=".11"/>
+  <circle cx="950" cy="178" r="62" stroke="#fff4dc" stroke-opacity=".7" stroke-width="3"/>
+  <path d="M950 144v68M916 178h68" stroke="#fff4dc" stroke-opacity=".75" stroke-width="3"/>
+</svg>

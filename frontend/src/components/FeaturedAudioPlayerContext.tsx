@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import { Link } from '@/i18n/routing';
 import { getModelDisplayName } from '@/lib/model-presenter';
+import { getAudioCover } from '@/lib/audio-covers';
 import type { FeaturedAudio } from '@/lib/types';
 import {
   createContext,
@@ -15,7 +16,7 @@ import {
 } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
-import { Music2, Pause, Play, SkipBack, SkipForward, Volume2, VolumeX, X } from 'lucide-react';
+import { Pause, Play, SkipBack, SkipForward, Volume2, VolumeX, X } from 'lucide-react';
 
 type FeaturedAudioPlayerContextValue = {
   currentTrack: FeaturedAudio | null;
@@ -129,6 +130,7 @@ function GlobalAudioMiniPlayer({
   onClose: () => void;
 }) {
   const t = useTranslations('GlobalAudioPlayer');
+  const coverImage = currentTrack.cover_image_url || getAudioCover(currentTrack.id);
 
   return (
     <div className="pointer-events-none fixed inset-x-4 bottom-4 z-[70] lg:left-[316px] lg:right-6">
@@ -138,21 +140,15 @@ function GlobalAudioMiniPlayer({
         <div className="relative z-[2] flex flex-col gap-4 p-4 md:flex-row md:items-center">
           <div className="flex min-w-0 items-center gap-3">
             <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-[1.15rem] border border-white/10 bg-zinc-950">
-              {currentTrack.cover_image_url ? (
-                <Image
-                  src={currentTrack.cover_image_url}
-                  alt={currentTrack.title}
-                  fill
-                  unoptimized
-                  loader={({ src }) => src}
-                  sizes="56px"
-                  className="object-cover"
-                />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,rgba(255,107,74,0.2),rgba(34,199,184,0.18))]">
-                  <Music2 className="h-5 w-5 text-white/80" />
-                </div>
-              )}
+              <Image
+                src={coverImage}
+                alt={currentTrack.title}
+                fill
+                unoptimized
+                loader={({ src }) => src}
+                sizes="56px"
+                className="object-cover"
+              />
             </div>
 
             <div className="min-w-0">
