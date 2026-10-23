@@ -28,6 +28,7 @@ import { useAuth } from '@/components/AuthContext';
 import type { HomeSocialLink, NavCard, SectionCard, FeedCardItem, SupportedLocale } from '@/components/home/home-presenter';
 import type { Banner, FAQ, SiteSettings } from '@/lib/types';
 import { getUserAvatarUrl, getUserDisplayName, getUserInitials } from '@/lib/user-presenter';
+import { getVideoPoster } from '@/lib/video-posters';
 import KaizenMark from '@/components/KaizenMark';
 
 const HomeLowerSections = dynamic(() => import('@/components/home/HomeLowerSections'));
@@ -81,8 +82,9 @@ function LazyVideo({
   src,
   className,
   autoPlayEnabled = true,
+  poster,
   ...rest
-}: React.ComponentPropsWithoutRef<'video'> & { src: string; autoPlayEnabled?: boolean }) {
+}: React.ComponentPropsWithoutRef<'video'> & { src: string; autoPlayEnabled?: boolean; poster?: string }) {
   const ref = useRef<HTMLVideoElement>(null);
   const [isVisible, setIsVisible] = useState(false);
 
@@ -115,6 +117,7 @@ function LazyVideo({
     <video
       ref={ref}
       src={isVisible ? src : undefined}
+      poster={poster || getVideoPoster(src)}
       className={className}
       autoPlay={autoPlayEnabled && isVisible}
       muted
