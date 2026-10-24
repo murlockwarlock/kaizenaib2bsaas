@@ -1,6 +1,9 @@
 import sys
+from pathlib import Path
 
-sys.path.append("/home/user/.gemini/antigravity/scratch/ai_editor_mvp/backend")
+BACKEND_DIR = Path(__file__).resolve().parents[1]
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIR))
 
 from core.database import SessionLocal
 from models.admin import ModelPricing
@@ -45,9 +48,17 @@ def build_price_entries():
 
     for resolution, kie_credits in (("1K", 8), ("2K", 12), ("4K", 18)):
         add("image", "nano-banana-2", kie_credits, resolution=resolution)
+        # KIE exposes the same resolution tiers for Nano Banana 2.1. Keep the
+        # existing Nano 2 baseline until the provider publishes a separate
+        # price table for this model.
+        add("image", "nano-banana-2-1", kie_credits, resolution=resolution)
 
     for resolution, kie_credits in (("1K", 18), ("2K", 18), ("4K", 24)):
         add("image", "nano-banana-pro", kie_credits, resolution=resolution)
+
+    # Nano Banana 2 Lite has no resolution/output-format input; price it as
+    # the lowest current Nano tier until KIE exposes a dedicated price row.
+    add("image", "nano-banana-2-lite", 8)
 
     add("image", "google/imagen4", 8)
     add("image", "google/imagen4-ultra", 12)
@@ -97,10 +108,12 @@ def build_price_entries():
     add("video", "kling-3/motion-control", 9, generation_mode="1080p")
 
     for duration in range(3, 16):
-        add("video", "kling-3.0/video", 20 * duration, duration=duration, generation_mode="std", sound_enabled=False)
-        add("video", "kling-3.0/video", 30 * duration, duration=duration, generation_mode="std", sound_enabled=True)
-        add("video", "kling-3.0/video", 27 * duration, duration=duration, generation_mode="pro", sound_enabled=False)
-        add("video", "kling-3.0/video", 40 * duration, duration=duration, generation_mode="pro", sound_enabled=True)
+        add("video", "kling-3.0/video", 14 * duration, duration=duration, generation_mode="std", sound_enabled=False)
+        add("video", "kling-3.0/video", 20 * duration, duration=duration, generation_mode="std", sound_enabled=True)
+        add("video", "kling-3.0/video", 18 * duration, duration=duration, generation_mode="pro", sound_enabled=False)
+        add("video", "kling-3.0/video", 27 * duration, duration=duration, generation_mode="pro", sound_enabled=True)
+        add("video", "kling-3.0/video", 67 * duration, duration=duration, generation_mode="4K", sound_enabled=False)
+        add("video", "kling-3.0/video", 67 * duration, duration=duration, generation_mode="4K", sound_enabled=True)
 
     for model_name in ("veo-3.1/text-fast", "veo-3.1/image-fast"):
         add("video", model_name, 60, duration=5, aspect_ratio="16:9")
@@ -119,6 +132,15 @@ def build_price_entries():
     add("video", "veo-3.1/extend-quality", 250, generation_mode="quality")
     add("video", "veo-3.1/get-1080p", 5)
     add("video", "veo-3.1/get-4k", 120)
+
+    # Current unified Veo 3.1 createTask pricing. KIE bills this endpoint per
+    # generated video (not by duration); the frontend still exposes the
+    # provider's supported 4/6/8 second choices, so keep rows for deterministic
+    # matching across every visible resolution and aspect ratio.
+    for resolution, kie_credits in (("720p", 60), ("1080p", 65), ("4k", 180)):
+        for duration in (4, 6, 8):
+            for aspect_ratio in ("16:9", "9:16"):
+                add("video", "veo-3-1", kie_credits, duration=duration, resolution=resolution, aspect_ratio=aspect_ratio)
 
     for model_name in ("sora-2-text-to-video", "sora-2-image-to-video"):
         add("video", model_name, 30, frame_count=10)
@@ -185,6 +207,77 @@ def build_price_entries():
     add("video", "bytedance/seedance-1-5-pro", 48, duration=8, resolution="1080p")
     add("video", "bytedance/seedance-1-5-pro", 60, duration=10, resolution="1080p")
 
+    # Current ByteDance Seedance pricing from KIE's model cards. The app
+    # cannot inspect uploaded reference-video duration before submission, so
+    # use the conservative no-video rate for the selectable output duration.
+    seedance_rates = {
+        "bytedance/seedance-2": {
+            "480p": 11.7,
+            "720p": 24.8,
+            # KIE's current page exposes higher tiers for standard Seedance 2;
+            # keep them fail-safe until a dedicated price card is available.
+            "1080p": 158,
+            "4k": 158,
+        },
+        "bytedance/seedance-2-fast": {"480p": 11.7, "720p": 24.8},
+        "bytedance/seedance-2-mini": {"480p": 3.8, "720p": 8.2},
+        "bytedance/seedance-2-5": {"480p": 28, "720p": 63, "1080p": 158},
+    }
+    for model_name, resolution_rates in seedance_rates.items():
+        max_duration = 30 if model_name.endswith("2-5") else 15
+        for resolution, rate in resolution_rates.items():
+            for duration in range(4, max_duration + 1):
+                add("video", model_name, rate * duration, duration=duration, resolution=resolution)
+
+    # Current KIE cards for Kling 4.0. Reference mode is priced at the
+    # no-video rate here because input-video duration is not available to the
+    # current billing schema; this avoids under-reserving provider cost.
+    for model_name in ("kling-4.0/reference-to-video", "kling-4.0/keyframe-to-video"):
+        for resolution, rate in (("720p", 28.5), ("1080p", 42.5)):
+            for duration in range(3, 31):
+                add("video", model_name, rate * duration, duration=duration, resolution=resolution)
+
+    # Wan 2.7 is documented at 16 credits/s for 720p and 24 credits/s for
+    # 1080p. The same conservative table covers its four input modes.
+    for model_name in (
+        "wan/2-7-text-to-video",
+        "wan/2-7-image-to-video",
+        "wan/2-7-videoedit",
+        "wan/2-7-r2v",
+    ):
+        for resolution, rate in (("480p", 16), ("720p", 16), ("1080p", 24)):
+            for duration in (5, 10):
+                add("video", model_name, rate * duration, duration=duration, resolution=resolution)
+
+    # Wan 3.0 and Prime publish separate per-second rates by resolution.
+    for model_name, resolution_rates in (
+        ("wan/3-0-video", {"480P": 8, "720P": 16, "1080P": 32}),
+        ("wan/3-0-video-prime", {"480P": 12.2, "720P": 25.2, "1080P": 50.4}),
+    ):
+        for resolution, rate in resolution_rates.items():
+            for duration in (5, 10):
+                add("video", model_name, rate * duration, duration=duration, resolution=resolution)
+
+    # Grok Imagine Video 1.5 Preview current KIE rates.
+    for resolution, rate in (("480p", 2.4), ("720p", 4.5), ("1080p", 8)):
+        for duration in (1, 4, 8, 12, 15):
+            add("video", "grok-imagine-video-1-5-preview", rate * duration, duration=duration, resolution=resolution)
+
+    # PixVerse V6 Max current rates (credits per second), with audio priced
+    # separately. Image-to-video follows the input image aspect ratio and
+    # therefore shares the same resolution/duration/audio table as text mode.
+    pixverse_rates = {
+        "360p": (4.8, 7.2),
+        "540p": (7.2, 8.8),
+        "720p": (8.8, 12.0),
+        "1080p": (17.6, 22.4),
+    }
+    for model_name in ("pixverse-v6-max/text-to-video", "pixverse-v6-max/image-to-video"):
+        for resolution, (silent_rate, audio_rate) in pixverse_rates.items():
+            for duration in (5, 8, 10, 15):
+                add("video", model_name, silent_rate * duration, duration=duration, resolution=resolution, sound_enabled=False)
+                add("video", model_name, audio_rate * duration, duration=duration, resolution=resolution, sound_enabled=True)
+
     # Sora utility workflows without public KIE rows yet.
     add("video", "sora-2-characters", 10)
     add("video", "sora-2-characters-pro", 10)
@@ -196,6 +289,21 @@ def build_price_entries():
 
     # Suno pricing is published as operation pricing rather than model-version pricing.
     # The app exposes model versions as one generation action, so use the same KIE base.
+    for model_name in ("suno/V6", "suno/V6_MINI", "suno/V6_WILD"):
+        add("audio", model_name, 12)
+
+    # Gemini TTS is published per token, while the app currently prices one
+    # dialogue submission as one operation. Keep a conservative operation
+    # baseline; admins can tune these rows without changing provider code.
+    for model_name, kie_credits in (
+        ("google/gemini-3-8-flash-tts", 18),
+        ("google/gemini-3-8-flash-lite-tts", 12),
+        ("google/gemini-3-1-flash-tts", 30),
+    ):
+        add("audio", model_name, kie_credits)
+
+    # Keep historical Suno rows for old links and already-created tasks. New
+    # UI requests use the V6 family above.
     for model_name in ("suno/V5", "suno/V4_5PLUS", "suno/V4_5", "suno/V4"):
         add("audio", model_name, 12)
 

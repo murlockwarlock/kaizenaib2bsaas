@@ -1,0 +1,21 @@
+[Unit]
+Description=KaizenAI Celery scheduler
+After=network-online.target redis-server.service kaizenai-worker.service
+Wants=network-online.target redis-server.service
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/kaizenai/current/backend
+EnvironmentFile=/opt/kaizenai/shared/backend.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/kaizenai/current/backend/.venv/bin/celery -A core.celery_app.celery_app beat --loglevel=INFO --pidfile=/tmp/kaizenai-celerybeat.pid
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=60
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

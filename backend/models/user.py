@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Numeric, Boolean, DateTime, ForeignKey
 from sqlalchemy.sql import func
 from core.database import Base
 
@@ -18,7 +18,7 @@ class User(Base):
     moderation_notice = Column(String, nullable=True)
     moderation_required = Column(Boolean, default=False, nullable=False)
     hashed_password = Column(String, nullable=False)
-    balance = Column(Float, default=0.0)
+    balance = Column(Numeric(12, 4), default=0, server_default="0", nullable=False)
     is_active = Column(Boolean, default=True)
     is_verified = Column(Boolean, default=False)
     is_superuser = Column(Boolean, default=False)

@@ -8,6 +8,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.responses import JSONResponse
+from fastapi.encoders import jsonable_encoder
 from sqlalchemy import text
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -25,9 +26,13 @@ import models.oauth_account
 import models.admin
 import models.billing
 
-# Create tables and run incremental migrations
-Base.metadata.create_all(bind=engine)
-run_migrations()
+# Local development may create the SQLite schema automatically. Production
+# releases set AUTO_CREATE_SCHEMA=false and run scripts/migrate.py once before
+# starting any API or Celery process.
+if settings.AUTO_CREATE_SCHEMA:
+    Base.metadata.create_all(bind=engine)
+    if settings.DATABASE_URL.startswith("sqlite"):
+        run_migrations()
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -127,7 +132,9 @@ async def log_validation_exception(request: Request, exc: RequestValidationError
         path=str(request.url.path),
         method=request.method,
     )
-    return JSONResponse(status_code=422, content={"detail": exc.errors()})
+    # Pydantic v2 includes ValueError instances in `ctx`; encode them before
+    # returning JSON so validation failures remain proper 422 responses.
+    return JSONResponse(status_code=422, content={"detail": jsonable_encoder(exc.errors())})
 
 from api import auth
 from api import generation

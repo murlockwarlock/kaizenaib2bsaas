@@ -104,7 +104,7 @@ export default function GooeyFooter({ settings }: { settings: SiteSettings }) {
       title: t('footer_create'),
       items: [
         makeInternalItem(navT('video'), '/video', <Video className="h-4 w-4" />),
-        makeInternalItem(navT('audio'), '/audio?model=suno%2FV5', <Music className="h-4 w-4" />),
+        makeInternalItem(navT('audio'), '/audio?model=suno%2FV6', <Music className="h-4 w-4" />),
         makeInternalItem(navT('images'), '/images', <ImageIcon className="h-4 w-4" />),
       ],
     },

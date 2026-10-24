@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, Numeric, ForeignKey, Integer, String, Text
 from sqlalchemy.sql import func
 
 from core.database import Base
@@ -10,7 +10,7 @@ class PromoCode(Base):
     id = Column(Integer, primary_key=True, index=True)
     code = Column(String, unique=True, index=True, nullable=False)
     description = Column(Text, nullable=True)
-    discount_percent = Column(Float, nullable=False, default=0.0)
+    discount_percent = Column(Numeric(7, 4), nullable=False, default=0)
     max_total_uses = Column(Integer, nullable=True)
     max_uses_per_user = Column(Integer, nullable=False, default=1)
     is_active = Column(Boolean, default=True)
@@ -27,17 +27,18 @@ class PaymentRecord(Base):
     provider = Column(String, nullable=False, default="yookassa")
     product_type = Column(String, nullable=False, default="plan")
     user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
-    pricing_plan_id = Column(Integer, ForeignKey("pricing_plans.id"), index=True, nullable=False)
+    pricing_plan_id = Column(Integer, ForeignKey("pricing_plans.id"), index=True, nullable=True)
     promo_code_id = Column(Integer, ForeignKey("promo_codes.id"), index=True, nullable=True)
     promo_code_snapshot = Column(String, nullable=True)
     provider_payment_id = Column(String, unique=True, index=True, nullable=True)
+    idempotence_key = Column(String, unique=True, index=True, nullable=True)
     provider_status = Column(String, nullable=True)
     status = Column(String, index=True, nullable=False, default="pending")
-    original_amount = Column(Float, nullable=False, default=0.0)
-    amount = Column(Float, nullable=False, default=0.0)
-    discount_amount = Column(Float, nullable=False, default=0.0)
-    discount_percent = Column(Float, nullable=False, default=0.0)
-    credits_rate_per_100_snapshot = Column(Float, nullable=False, default=0.0)
+    original_amount = Column(Numeric(12, 2), nullable=False, default=0)
+    amount = Column(Numeric(12, 2), nullable=False, default=0)
+    discount_amount = Column(Numeric(12, 2), nullable=False, default=0)
+    discount_percent = Column(Numeric(7, 4), nullable=False, default=0)
+    credits_rate_per_100_snapshot = Column(Numeric(12, 4), nullable=False, default=0)
     currency = Column(String, nullable=False, default="RUB")
     credits = Column(Integer, nullable=False, default=0)
     description = Column(String, nullable=True)
@@ -63,7 +64,7 @@ class Subscription(Base):
     user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
     pricing_plan_id = Column(Integer, ForeignKey("pricing_plans.id"), index=True, nullable=False)
     status = Column(String, index=True, nullable=False, default="active")
-    amount = Column(Float, nullable=False, default=0.0)
+    amount = Column(Numeric(12, 2), nullable=False, default=0)
     currency = Column(String, nullable=False, default="RUB")
     credits = Column(Integer, nullable=False, default=0)
     interval_days = Column(Integer, nullable=False, default=30)

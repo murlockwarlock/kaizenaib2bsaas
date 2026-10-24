@@ -30,7 +30,7 @@ class TestSecurityHardening:
         )
 
         assert response.status_code == 400
-        assert "Unsupported image type" in response.json()["detail"]
+        assert "Unsupported file type" in response.json()["detail"]
 
     def test_upload_returns_relative_safe_url(self, client, auth_headers):
         response = client.post(
@@ -88,3 +88,46 @@ class TestSecurityHardening:
         assert response.status_code == 200
         assert task.status == "success"
         assert task.output_url == "https://cdn.example.com/song.mp3"
+
+    def test_kie_callback_failure_refunds_once(self, client, db_session):
+        from models.task import Task
+        from models.user import User
+
+        user = User(
+            email="kie-callback@example.com",
+            hashed_password="not-used",
+            balance=7,
+            is_verified=True,
+        )
+        db_session.add(user)
+        db_session.flush()
+        task = Task(
+            user_id=user.id,
+            task_id_vendor="generic-vendor-task",
+            status="processing",
+            category="image",
+            tool_type="general",
+            cost=3,
+        )
+        db_session.add(task)
+        db_session.commit()
+
+        with patch('api.generation.settings.KIE_CALLBACK_TOKEN', 'kie-token'):
+            response = client.post(
+                "/api/v1/ai/kie/callback?token=kie-token",
+                json={
+                    "code": 200,
+                    "data": {
+                        "taskId": "generic-vendor-task",
+                        "state": "fail",
+                        "failMsg": "Provider rejected the request",
+                    },
+                },
+            )
+
+        db_session.refresh(user)
+        db_session.refresh(task)
+        assert response.status_code == 200
+        assert task.status == "failed"
+        assert task.credits_refunded_at is not None
+        assert user.balance == 10

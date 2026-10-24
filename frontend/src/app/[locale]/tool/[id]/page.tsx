@@ -102,11 +102,15 @@ export default function ToolPage({ params }: { params: Promise<{ id: string }> }
                     setResultUrl(statusRes.result_url);
                     setIsProcessing(false);
                     clearInterval(interval);
-                } else if (statusRes.status === 'failed') {
+                } else if (statusRes.status === 'failed' || statusRes.status === 'submission_unknown') {
                     setIsProcessing(false);
                     clearInterval(interval);
                     toast.error(alertsT('failed_title'), {
-                        description: getGenerationFailureDescription(statusRes.error_message, alertsT),
+                        description: getGenerationFailureDescription(
+                            statusRes.error_message,
+                            alertsT,
+                            statusRes.credits_refunded !== false && statusRes.status !== 'submission_unknown',
+                        ),
                     });
                 }
             }, 3000);

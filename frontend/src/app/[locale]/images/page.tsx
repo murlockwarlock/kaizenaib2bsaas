@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/components/AuthContext';
 import AuthRequiredModal from '@/components/AuthRequiredModal';
 import { trackGeneration } from '@/lib/generation-tracker';
+import { localizeProviderError } from '@/lib/generation-alerts';
 import { selectBestPrice, type PublicPriceEntry } from '@/lib/pricing';
 import {
     allowsOptionalReferences,
@@ -23,6 +24,8 @@ import {
     IMAGE_MODELS,
     IMAGE_SIZE_MAPPING,
     NANOBANANA_MODEL,
+    NANOBANANA_21_MODEL,
+    NANOBANANA_LITE_MODEL,
     NANOBANANA_PRO_MODEL,
     supportsGoogleSearch,
     supportsMultipleReferences,
@@ -232,7 +235,7 @@ export default function ImageAITool() {
             const hasReferences = uploadedImageUrls.length > 0;
 
             // Synchronize resolution/aspect ratio
-            if (modelObj.id === NANOBANANA_MODEL || modelObj.id === NANOBANANA_PRO_MODEL) {
+            if (modelObj.id === NANOBANANA_MODEL || modelObj.id === NANOBANANA_21_MODEL || modelObj.id === NANOBANANA_PRO_MODEL) {
                 if (hasReferences) {
                     inputs.image_input = uploadedImageUrls;
                 }
@@ -242,6 +245,11 @@ export default function ImageAITool() {
                 if (modelObj.id === NANOBANANA_MODEL) {
                     inputs.google_search = googleSearch;
                 }
+            } else if (modelObj.id === NANOBANANA_LITE_MODEL) {
+                if (hasReferences) {
+                    inputs.image_urls = uploadedImageUrls;
+                }
+                inputs.aspect_ratio = aspectRatio;
             } else if (modelObj.id === GOOGLE_NANO_BANANA_MODEL) {
                 inputs.image_size = aspectRatio;
                 inputs.output_format = outputFormat;
@@ -295,6 +303,8 @@ export default function ImageAITool() {
                 inputs,
                 resolution: getResolutionOptions(modelObj.id).length > 0
                     ? resolution
+                    : modelObj.id === NANOBANANA_LITE_MODEL
+                        ? undefined
                     : usesAspectRatioAsImageSize(modelObj.id)
                         ? aspectRatio
                         : aspectRatio,
@@ -306,7 +316,7 @@ export default function ImageAITool() {
             const message = typeof error === 'object' && error !== null && 'response' in error
                 ? (error as { response?: { data?: { detail?: string } } }).response?.data?.detail
                 : undefined;
-            toast.error(message || t('error_generic'));
+            toast.error(localizeProviderError(message, locale) || t('error_generic'));
         } finally {
             setLoading(false);
         }

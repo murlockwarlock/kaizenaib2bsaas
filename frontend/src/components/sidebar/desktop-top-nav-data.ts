@@ -50,14 +50,14 @@ export function buildDesktopTopNavData(locale: SupportedLocale) {
   const audioDropdownCards: HeaderDropdownCard[] =
     locale === 'ru'
       ? [
-          { id: 'suno-v5', title: 'Suno V5', description: 'Быстрый старт для треков, демо и музыкальных идей.', href: '/audio?model=suno%2FV5', image: null },
-          { id: 'suno-v45', title: 'Suno V4.5+', description: 'Когда нужен плотный, более коммерческий звук.', href: '/audio?model=suno%2FV4_5PLUS', image: null },
+          { id: 'suno-v6', title: 'Suno V6', description: 'Актуальный старт для треков, демо и музыкальных идей.', href: '/audio?model=suno%2FV6', image: null },
+          { id: 'suno-v6-mini', title: 'Suno V6 Mini', description: 'Более лёгкий режим для быстрых музыкальных итераций.', href: '/audio?model=suno%2FV6_MINI', image: null },
           { id: 'el-tts', title: 'ElevenLabs Turbo', description: 'Озвучка, дикторский голос и короткие voice-over ролики.', href: '/audio?model=elevenlabs%2Ftext-to-speech-turbo-2-5', image: null },
           { id: 'el-dialogue', title: 'ElevenLabs Dialogue', description: 'Диалоги и сценки с несколькими голосами.', href: '/audio?model=elevenlabs%2Ftext-to-dialogue-v3', image: null },
         ]
       : [
-          { id: 'suno-v5', title: 'Suno V5', description: 'Fast start for tracks, demos and music concepts.', href: '/audio?model=suno%2FV5', image: null },
-          { id: 'suno-v45', title: 'Suno V4.5+', description: 'A stronger pick for denser commercial sound.', href: '/audio?model=suno%2FV4_5PLUS', image: null },
+          { id: 'suno-v6', title: 'Suno V6', description: 'Current starting point for tracks, demos and music concepts.', href: '/audio?model=suno%2FV6', image: null },
+          { id: 'suno-v6-mini', title: 'Suno V6 Mini', description: 'A lighter mode for fast music iteration.', href: '/audio?model=suno%2FV6_MINI', image: null },
           { id: 'el-tts', title: 'ElevenLabs Turbo', description: 'Voice-over, narration and polished spoken audio.', href: '/audio?model=elevenlabs%2Ftext-to-speech-turbo-2-5', image: null },
           { id: 'el-dialogue', title: 'ElevenLabs Dialogue', description: 'Dialogue scenes with multiple voices.', href: '/audio?model=elevenlabs%2Ftext-to-dialogue-v3', image: null },
         ];

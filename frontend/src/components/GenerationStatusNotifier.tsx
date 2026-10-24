@@ -12,7 +12,7 @@ import { getGenerationFailureDescription } from '@/lib/generation-alerts';
 import { ArrowUpRight, CheckCircle2, XCircle } from 'lucide-react';
 
 const SUCCESS_STATES = new Set(['success', 'completed']);
-const FAILURE_STATES = new Set(['failed', 'error']);
+const FAILURE_STATES = new Set(['failed', 'error', 'submission_unknown']);
 
 function playNotificationSound() {
   if (typeof window === 'undefined') return;
@@ -117,10 +117,10 @@ export default function GenerationStatusNotifier() {
   const t = useTranslations('GenerationAlerts');
   const router = useRouter();
   const inFlightRef = useRef<Set<number>>(new Set());
-  const [trackedCount, setTrackedCount] = useState(0);
+  const providerIssueNoticeRef = useRef<Set<number>>(new Set());
+  const [trackedCount, setTrackedCount] = useState(() => getTrackedGenerations().length);
 
   useEffect(() => {
-    setTrackedCount(getTrackedGenerations().length);
     return subscribeTrackedGenerations((items) => {
       setTrackedCount(items.length);
     });
@@ -146,6 +146,7 @@ export default function GenerationStatusNotifier() {
             const status = String(response.data?.status || '').toLowerCase();
 
             if (SUCCESS_STATES.has(status)) {
+              providerIssueNoticeRef.current.delete(item.taskId);
               if (!cancelled) {
                 refreshNotifications();
                 playNotificationSound();
@@ -170,10 +171,15 @@ export default function GenerationStatusNotifier() {
             }
 
             if (FAILURE_STATES.has(status)) {
+              providerIssueNoticeRef.current.delete(item.taskId);
               if (!cancelled) {
                 refreshNotifications();
                 const errorMessage = response.data?.error_message as string | null | undefined;
-                const description = getGenerationFailureDescription(errorMessage, t);
+                const description = getGenerationFailureDescription(
+                  errorMessage,
+                  t,
+                  response.data?.credits_refunded !== false && status !== 'submission_unknown',
+                );
                 showBrowserNotification(t('failed_title'), description);
                 toast.custom(() => (
                   <GenerationToastCard
@@ -190,6 +196,31 @@ export default function GenerationStatusNotifier() {
                 });
               }
               untrackGeneration(item.taskId);
+              return;
+            }
+
+            const providerStatus = String(response.data?.provider_status || '').toLowerCase();
+            if (providerStatus === 'provider_status_unavailable') {
+              if (!providerIssueNoticeRef.current.has(item.taskId)) {
+                providerIssueNoticeRef.current.add(item.taskId);
+                const description = t('provider_pending_desc');
+                showBrowserNotification(t('provider_pending_title'), description);
+                toast.custom(() => (
+                  <GenerationToastCard
+                    icon={<XCircle className="h-5 w-5 text-amber-100" />}
+                    accentClass="bg-amber-500/16 text-amber-200"
+                    title={t('provider_pending_title')}
+                    description={description}
+                    actionLabel={t('open_projects')}
+                    onAction={() => router.push('/my-creations')}
+                  />
+                ), {
+                  duration: 10000,
+                  id: `generation-provider-pending-${item.taskId}`,
+                });
+              }
+            } else {
+              providerIssueNoticeRef.current.delete(item.taskId);
             }
           } catch {
             // Ignore transient polling errors and retry on next tick.
@@ -202,11 +233,14 @@ export default function GenerationStatusNotifier() {
 
     pollTrackedGenerations();
     const intervalId = window.setInterval(pollTrackedGenerations, 6000);
+    const inFlightTasks = inFlightRef.current;
+    const providerIssueNotices = providerIssueNoticeRef.current;
 
     return () => {
       cancelled = true;
       window.clearInterval(intervalId);
-      inFlightRef.current.clear();
+      inFlightTasks.clear();
+      providerIssueNotices.clear();
     };
   }, [router, t, trackedCount, user]);
 

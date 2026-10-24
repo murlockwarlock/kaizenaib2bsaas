@@ -39,7 +39,10 @@ def require_billing_enabled():
         raise HTTPException(status_code=503, detail="Billing is disabled until payment access is configured")
 
 
-router = APIRouter(dependencies=[Depends(require_billing_enabled)])
+# Do not put the feature flag on the whole router: administrators must still
+# be able to inspect historical payments, plans and promo codes while new
+# checkout is disabled, and webhooks must remain routable for reconciliation.
+router = APIRouter()
 
 
 def _get_site_base_url() -> str:
@@ -95,6 +98,7 @@ def get_checkout_quote(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
+    require_billing_enabled()
     try:
         plan = _get_plan(db, data.plan_id) if data.purchase_type == PRODUCT_TYPE_PLAN and data.plan_id is not None else None
         quote = build_checkout_quote(
@@ -116,6 +120,7 @@ async def create_checkout_payment(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
+    require_billing_enabled()
     if not (settings.YOOKASSA_SHOP_ID and settings.YOOKASSA_SECRET_KEY):
         raise HTTPException(status_code=500, detail="YooKassa is not configured")
 
@@ -155,9 +160,18 @@ async def create_checkout_payment(
     )
 
     try:
-        provider_payment = await create_payment(payload)
+        provider_payment = await create_payment(payload, idempotence_key=payment.idempotence_key)
     except YooKassaError as exc:
+        if exc.uncertain:
+            payment.status = "pending"
+            payment.provider_status = "provider_confirmation_pending"
+            db.commit()
+            raise HTTPException(
+                status_code=502,
+                detail="Payment creation is still being confirmed. Please refresh this payment shortly.",
+            ) from exc
         payment.status = "failed"
+        payment.provider_status = "provider_request_failed"
         db.commit()
         raise HTTPException(status_code=502, detail="Failed to create YooKassa payment") from exc
 
@@ -200,7 +214,10 @@ async def refresh_checkout_payment(
             db.commit()
             db.refresh(payment)
         except YooKassaError as exc:
-            raise HTTPException(status_code=502, detail="Failed to refresh payment state") from exc
+            if exc.uncertain:
+                payment.provider_status = "provider_confirmation_pending"
+                db.commit()
+            raise HTTPException(status_code=502, detail="Failed to refresh payment state; the provider may still be processing it") from exc
 
     if payment.status == "pending" and payment.expires_at and utcnow() > payment.expires_at:
         payment.status = "expired"
@@ -273,6 +290,11 @@ async def yookassa_webhook(
         return {"status": "ignored"}
 
     payment = db.query(PaymentRecord).filter(PaymentRecord.provider_payment_id == str(provider_payment_id)).first()
+    if not payment:
+        metadata = payment_object.get("metadata") or {}
+        public_id = metadata.get("payment_public_id")
+        if public_id:
+            payment = db.query(PaymentRecord).filter(PaymentRecord.public_id == str(public_id)).first()
     if not payment:
         return {"status": "ignored"}
 
@@ -410,6 +432,7 @@ async def process_due_subscriptions(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_superuser),
 ):
+    require_billing_enabled()
     due_subscriptions = (
         db.query(Subscription)
         .filter(
@@ -448,6 +471,7 @@ async def process_due_subscriptions(
             recurring_opt_in=True,
             payment_method_id=subscription.payment_method_id,
             payment_method_type=subscription.payment_method_type,
+            idempotence_key=uuid.uuid4().hex,
         )
         db.add(payment)
         db.flush()
@@ -459,7 +483,7 @@ async def process_due_subscriptions(
             payment_method_id=subscription.payment_method_id,
         )
         try:
-            provider_payment = await create_payment(payload)
+            provider_payment = await create_payment(payload, idempotence_key=payment.idempotence_key)
             sync_payment_record(db, payment, provider_payment)
             subscription.last_payment_id = payment.id
             if payment.status == "succeeded":
@@ -471,7 +495,8 @@ async def process_due_subscriptions(
                 subscription.next_charge_at = utcnow() + timedelta(days=1)
                 subscription.last_error = payment.provider_status or payment.status
         except YooKassaError as exc:
-            payment.status = "failed"
+            payment.status = "pending" if exc.uncertain else "failed"
+            payment.provider_status = "provider_confirmation_pending" if exc.uncertain else "provider_request_failed"
             subscription.status = "past_due"
             subscription.last_error = str(exc)
             subscription.next_charge_at = utcnow() + timedelta(days=1)

@@ -45,6 +45,8 @@ export const IMAGE_MODELS: Array<{ group: string; models: ImageModel[] }> = [
             { id: 'google/nano-banana', name: 'Google Nano Banana', type: 'text-to-image' },
             { id: 'google/nano-banana-edit', name: 'Google Nano Banana Edit', type: 'image-to-image' },
             { id: 'nano-banana-2', name: 'Nano Banana 2', type: 'text-to-image' },
+            { id: 'nano-banana-2-1', name: 'Nano Banana 2.1', type: 'text-to-image' },
+            { id: 'nano-banana-2-lite', name: 'Nano Banana 2 Lite', type: 'text-to-image' },
             { id: 'nano-banana-pro', name: 'Nano Banana Pro', type: 'text-to-image' },
             { id: 'google/imagen4', name: 'Google Imagen 4', type: 'text-to-image' },
             { id: 'google/imagen4-fast', name: 'Google Imagen 4 Fast', type: 'text-to-image' },
@@ -63,6 +65,8 @@ export const IMAGE_MODELS: Array<{ group: string; models: ImageModel[] }> = [
 ];
 
 export const NANOBANANA_MODEL = 'nano-banana-2';
+export const NANOBANANA_21_MODEL = 'nano-banana-2-1';
+export const NANOBANANA_LITE_MODEL = 'nano-banana-2-lite';
 export const NANOBANANA_PRO_MODEL = 'nano-banana-pro';
 export const GOOGLE_NANO_BANANA_MODEL = 'google/nano-banana';
 export const GOOGLE_NANO_BANANA_EDIT_MODEL = 'google/nano-banana-edit';
@@ -111,14 +115,14 @@ export function usesImageSize(modelId: string) {
 }
 
 export function getAspectRatioOptions(modelId: string) {
-    if (modelId === NANOBANANA_MODEL) return NANOBANANA_ASPECT_RATIOS;
+    if (modelId === NANOBANANA_MODEL || modelId === NANOBANANA_21_MODEL || modelId === NANOBANANA_LITE_MODEL) return NANOBANANA_ASPECT_RATIOS;
     if (modelId === NANOBANANA_PRO_MODEL || modelId === GOOGLE_NANO_BANANA_MODEL || modelId === GOOGLE_NANO_BANANA_EDIT_MODEL) return GOOGLE_NANO_ASPECT_RATIOS;
     if (GOOGLE_IMAGEN_MODELS.includes(modelId)) return GOOGLE_IMAGEN_ASPECT_RATIOS;
     return DEFAULT_IMAGE_ASPECT_RATIOS;
 }
 
 export function getResolutionOptions(modelId: string) {
-    if (modelId === NANOBANANA_MODEL || modelId === NANOBANANA_PRO_MODEL) return ['1K', '2K', '4K'];
+    if (modelId === NANOBANANA_MODEL || modelId === NANOBANANA_21_MODEL || modelId === NANOBANANA_PRO_MODEL) return ['1K', '2K', '4K'];
     if (modelId.includes('flux') || modelId.includes('seedream-v4')) return ['1K', '2K'];
     return [];
 }
@@ -126,6 +130,7 @@ export function getResolutionOptions(modelId: string) {
 export function supportsOutputFormat(modelId: string) {
     return [
         NANOBANANA_MODEL,
+        NANOBANANA_21_MODEL,
         NANOBANANA_PRO_MODEL,
         GOOGLE_NANO_BANANA_MODEL,
         GOOGLE_NANO_BANANA_EDIT_MODEL,
@@ -138,20 +143,22 @@ export function supportsGoogleSearch(modelId: string) {
 
 export function getOutputFormatOptions(modelId: string): OutputFormat[] {
     if ([GOOGLE_NANO_BANANA_MODEL, GOOGLE_NANO_BANANA_EDIT_MODEL].includes(modelId)) return ['png', 'jpeg'];
-    if ([NANOBANANA_MODEL, NANOBANANA_PRO_MODEL].includes(modelId)) return ['jpg', 'png'];
+    if ([NANOBANANA_MODEL, NANOBANANA_21_MODEL, NANOBANANA_PRO_MODEL].includes(modelId)) return ['jpg', 'png'];
     return [];
 }
 
 export function supportsMultipleReferences(modelId: string) {
-    return [NANOBANANA_MODEL, NANOBANANA_PRO_MODEL, GOOGLE_NANO_BANANA_EDIT_MODEL].includes(modelId);
+    return [NANOBANANA_MODEL, NANOBANANA_21_MODEL, NANOBANANA_PRO_MODEL, GOOGLE_NANO_BANANA_EDIT_MODEL, NANOBANANA_LITE_MODEL].includes(modelId);
 }
 
 export function allowsOptionalReferences(modelId: string) {
-    return [NANOBANANA_MODEL, NANOBANANA_PRO_MODEL].includes(modelId);
+    return [NANOBANANA_MODEL, NANOBANANA_21_MODEL, NANOBANANA_PRO_MODEL, NANOBANANA_LITE_MODEL].includes(modelId);
 }
 
 export function getMaxReferences(modelId: string) {
     if (modelId === NANOBANANA_MODEL) return 14;
+    if (modelId === NANOBANANA_21_MODEL) return 10;
+    if (modelId === NANOBANANA_LITE_MODEL) return 10;
     if (modelId === NANOBANANA_PRO_MODEL) return 8;
     if (modelId === GOOGLE_NANO_BANANA_EDIT_MODEL) return 10;
     return 1;
@@ -215,6 +222,8 @@ export function splitAspectRatioOptions(options: string[]) {
 export function getModelShortDescription(model: ImageModel, locale: 'ru' | 'en') {
     const ru =
         model.id === NANOBANANA_MODEL ? 'Большие кадры, несколько изображений и гибкая работа с форматом.'
+        : model.id === NANOBANANA_21_MODEL ? 'Актуальная версия Nano Banana для новых генераций и редактирования.'
+        : model.id === NANOBANANA_LITE_MODEL ? 'Быстрый режим с поддержкой нескольких референсов.'
         : model.id === NANOBANANA_PRO_MODEL ? 'Сильный режим для чистой картинки и крупных финальных кадров.'
         : model.id === GOOGLE_NANO_BANANA_MODEL ? 'Быстрый вариант для повседневных генераций.'
         : model.id === GOOGLE_NANO_BANANA_EDIT_MODEL ? 'Подходит, когда нужно заметно переделать уже готовый кадр.'
@@ -239,6 +248,8 @@ export function getModelShortDescription(model: ImageModel, locale: 'ru' | 'en')
 
     const en =
         model.id === NANOBANANA_MODEL ? 'Large outputs, multiple images and flexible framing.'
+        : model.id === NANOBANANA_21_MODEL ? 'The current Nano Banana version for new generations and edits.'
+        : model.id === NANOBANANA_LITE_MODEL ? 'A fast mode with support for multiple references.'
         : model.id === NANOBANANA_PRO_MODEL ? 'A stronger mode for cleaner visuals and larger finals.'
         : model.id === GOOGLE_NANO_BANANA_MODEL ? 'A fast option for everyday image generation.'
         : model.id === GOOGLE_NANO_BANANA_EDIT_MODEL ? 'Great when an existing frame needs a visible rewrite.'

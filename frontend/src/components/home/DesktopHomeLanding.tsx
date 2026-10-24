@@ -537,7 +537,7 @@ export default function DesktopHomeLanding({
                 description={copy.sections.audio.description}
                 cards={dropdownAudio}
                 sectionId="audio"
-                sectionHref="/audio?model=suno%2FV5"
+                sectionHref="/audio?model=suno%2FV6"
                 ctaLabel={copy.nav.openAll}
               />
               <Link
@@ -724,7 +724,7 @@ export default function DesktopHomeLanding({
                 { href: '/explore', label: copy.nav.explore, icon: Compass },
                 { href: '/images', label: copy.nav.images, icon: ImageIcon },
                 { href: '/video', label: copy.nav.video, icon: Video },
-                { href: '/audio?model=suno%2FV5', label: copy.nav.audio, icon: Music },
+                { href: '/audio?model=suno%2FV6', label: copy.nav.audio, icon: Music },
                 { href: '/catalog', label: copy.nav.tools, icon: Layers3 },
                 { href: '/pricing', label: copy.nav.pricing, icon: Coins },
               ].map((item) => {

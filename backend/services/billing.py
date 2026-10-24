@@ -374,8 +374,19 @@ def build_yookassa_payload(
 def _mark_credits_granted(db: Session, payment: PaymentRecord, user: User) -> None:
     if payment.credits_granted_at:
         return
-    user.balance = round_money((user.balance or 0) + payment.credits)
-    payment.credits_granted_at = utcnow()
+    locked_user = db.query(User).filter(User.id == user.id).with_for_update().first()
+    if not locked_user:
+        return
+    locked_payment = db.query(PaymentRecord).filter(PaymentRecord.id == payment.id).with_for_update().first()
+    if not locked_payment or locked_payment.credits_granted_at:
+        return
+    locked_user.balance = round_money((locked_user.balance or 0) + payment.credits)
+    granted_at = utcnow()
+    locked_payment.credits_granted_at = granted_at
+    # Keep the caller's instance in sync as well. This is normally the same
+    # identity-map object, but making it explicit avoids stale serialization
+    # if the session configuration ever changes.
+    payment.credits_granted_at = granted_at
 
 
 def _upsert_subscription(db: Session, payment: PaymentRecord) -> None:
@@ -432,9 +443,12 @@ def _upsert_subscription(db: Session, payment: PaymentRecord) -> None:
 
 
 def sync_payment_record(db: Session, payment: PaymentRecord, provider_data: dict[str, Any]) -> PaymentRecord:
-    payment.provider_status = str(provider_data.get("status") or payment.provider_status or "")
+    incoming_status = str(provider_data.get("status") or "").strip().lower()
+    payment.provider_status = incoming_status or payment.provider_status
     payment.provider_payload_json = json.dumps(provider_data, ensure_ascii=True)
-    payment.provider_payment_id = str(provider_data.get("id") or payment.provider_payment_id or "")
+    provider_payment_id = provider_data.get("id")
+    if provider_payment_id:
+        payment.provider_payment_id = str(provider_payment_id)
 
     confirmation = provider_data.get("confirmation") or {}
     confirmation_url = confirmation.get("confirmation_url")
@@ -449,11 +463,19 @@ def sync_payment_record(db: Session, payment: PaymentRecord, provider_data: dict
     if payment_method_type:
         payment.payment_method_type = payment_method_type
 
-    status = str(provider_data.get("status") or payment.status)
+    status = incoming_status or str(payment.status or "pending")
+    # YooKassa's succeeded and canceled states are final. A delayed webhook or
+    # a stale refresh must never revoke already granted credits.
+    if payment.status == "succeeded" and status != "succeeded":
+        db.flush()
+        return payment
+    if payment.status == "canceled" and status != "canceled":
+        db.flush()
+        return payment
     if status == "succeeded":
         payment.status = "succeeded"
         payment.paid_at = parse_datetime(provider_data.get("captured_at") or provider_data.get("paid_at")) or utcnow()
-        user = db.query(User).filter(User.id == payment.user_id).first()
+        user = db.query(User).filter(User.id == payment.user_id).with_for_update().first()
         if user:
             _mark_credits_granted(db, payment, user)
         _upsert_subscription(db, payment)
@@ -487,7 +509,7 @@ def create_payment_record(
         provider="yookassa",
         product_type=quote["product_type"],
         user_id=user.id,
-        pricing_plan_id=plan.id if plan else 0,
+        pricing_plan_id=plan.id if plan else None,
         promo_code_id=quote["promo"].id if quote["promo"] else None,
         promo_code_snapshot=quote["promo"].code if quote["promo"] else None,
         status="pending",
@@ -503,6 +525,7 @@ def create_payment_record(
         expires_at=expires_at,
         save_payment_method=recurring_opt_in and bool(plan and plan.is_recurring),
         recurring_opt_in=recurring_opt_in and bool(plan and plan.is_recurring),
+        idempotence_key=uuid.uuid4().hex,
     )
     db.add(payment)
     db.flush()

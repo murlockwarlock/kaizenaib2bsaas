@@ -82,6 +82,8 @@ const HOME_IMAGE_MODELS = [
       { id: 'google/nano-banana', name: 'Google Nano Banana', type: 'text' },
       { id: 'google/nano-banana-edit', name: 'Google Nano Banana Edit', type: 'edit' },
       { id: 'nano-banana-2', name: 'Nano Banana 2', type: 'text' },
+      { id: 'nano-banana-2-1', name: 'Nano Banana 2.1', type: 'text' },
+      { id: 'nano-banana-2-lite', name: 'Nano Banana 2 Lite', type: 'text' },
       { id: 'nano-banana-pro', name: 'Nano Banana Pro', type: 'text' },
       { id: 'google/imagen4', name: 'Google Imagen 4', type: 'text' },
       { id: 'google/imagen4-fast', name: 'Google Imagen 4 Fast', type: 'text' },
@@ -129,6 +131,14 @@ const VIDEO_GROUP_DESCRIPTIONS: Record<VideoFamilyId, { ru: string; en: string }
     ru: 'Для выразительной рекламной подачи, продолжения готовых роликов и более polished-визуала.',
     en: 'For polished ad-style visuals, continuing existing clips and a more refined finish.',
   },
+  grok: {
+    ru: 'Для быстрых экспериментальных роликов с изображениями, keyframes и синхронным звуком.',
+    en: 'For fast experimental clips with image references, keyframes and synchronized audio.',
+  },
+  pixverse: {
+    ru: 'Для быстрых выразительных роликов до 15 секунд с управляемым качеством и опциональным native audio.',
+    en: 'For expressive clips up to 15 seconds with selectable quality and optional native audio.',
+  },
 };
 
 const VIDEO_MODEL_IMAGE_MAP: Record<string, string> = {
@@ -172,6 +182,8 @@ const VIDEO_MODEL_IMAGE_MAP: Record<string, string> = {
   'runway/generate': 'https://images.unsplash.com/photo-1541643600914-78b084683601?auto=format&fit=crop&w=1400&q=80',
   'runway/extend': 'https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?auto=format&fit=crop&w=1400&q=80',
   'runway/aleph-generate': 'https://images.unsplash.com/photo-1493246318656-5bfd4cfb29b8?auto=format&fit=crop&w=1400&q=80',
+  'pixverse-v6-max/text-to-video': 'https://images.unsplash.com/photo-1519608487953-e999c86e7455?auto=format&fit=crop&w=1400&q=80',
+  'pixverse-v6-max/image-to-video': 'https://images.unsplash.com/photo-1493246507139-91e8fad9978e?auto=format&fit=crop&w=1400&q=80',
 };
 
 const IMAGE_MODEL_IMAGE_MAP: Record<string, string> = {
@@ -366,7 +378,7 @@ function getImageCardImage(modelId: string) {
 }
 
 export function buildVideoDirectory(locale: SupportedLocale): DirectoryGroup[] {
-  const familyOrder: VideoFamilyId[] = ['bytedance', 'kling', 'veo', 'hailuo', 'wan', 'runway'];
+  const familyOrder: VideoFamilyId[] = ['bytedance', 'kling', 'veo', 'hailuo', 'wan', 'grok', 'pixverse', 'runway'];
 
   return familyOrder.map((family) => {
     const familyModels = VIDEO_MODELS.filter((model) => model.family === family);

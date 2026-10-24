@@ -61,7 +61,7 @@ export default async function CatalogPage() {
     description: sunoT(benefit.descKey),
   }));
   const primarySunoPrompt = featuredAudio.find((item) => item.prompt)?.prompt || sunoPresets[0].prompt;
-  const primarySunoHref = `/audio?model=suno%2FV5&prompt=${encodeURIComponent(primarySunoPrompt)}`;
+  const primarySunoHref = `/audio?model=suno%2FV6&prompt=${encodeURIComponent(primarySunoPrompt)}`;
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-8 px-0 pb-10 pt-20 sm:px-4 md:gap-10 md:px-6 md:pb-14 md:pt-12">
@@ -69,7 +69,7 @@ export default async function CatalogPage() {
         featuredAudio={featuredAudio}
         presets={sunoPresets}
         benefits={sunoBenefits}
-        createHref="/audio?model=suno%2FV5"
+        createHref="/audio?model=suno%2FV6"
         promptHref={primarySunoHref}
         copy={{
           badge: sunoT('suno_badge'),

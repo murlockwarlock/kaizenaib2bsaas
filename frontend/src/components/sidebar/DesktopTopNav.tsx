@@ -162,7 +162,7 @@ export default function DesktopTopNav({
         label={t('audio')}
         title={supportedLocale === 'ru' ? 'Музыка и голос' : 'Music & Voice'}
         description={supportedLocale === 'ru' ? 'Треки, озвучка и диалоги в одном разделе.' : 'Tracks, voice-over and dialogues in one section.'}
-        href="/audio?model=suno%2FV5"
+        href="/audio?model=suno%2FV6"
         cards={hydratedAudioDropdownCards}
         ctaLabel={supportedLocale === 'ru' ? 'Открыть раздел' : 'Open section'}
         onOpen={() => setShouldLoadAudioCards(true)}

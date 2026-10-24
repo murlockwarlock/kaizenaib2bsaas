@@ -31,6 +31,7 @@ const COPY = {
     doneMessage: 'Результат уже доступен в ваших проектах.',
     failedTitle: 'Генерация не удалась',
     failedMessage: 'Кредиты возвращены на баланс.',
+    pendingMessage: 'Провайдер не подтвердил запуск. Кредиты пока зарезервированы; проверьте статус позже или обратитесь в поддержку.',
   },
   en: {
     title: 'Notifications',
@@ -45,6 +46,7 @@ const COPY = {
     doneMessage: 'Your result is ready in My Creations.',
     failedTitle: 'Generation failed',
     failedMessage: 'Credits were returned to your balance.',
+    pendingMessage: 'The provider did not confirm the request. Credits remain reserved; check the status later or contact support.',
   },
 } as const;
 
@@ -54,6 +56,8 @@ function formatNotification(notification: UserNotification, locale: 'ru' | 'en')
   const model = typeof metadata.model === 'string' ? metadata.model : '';
   const errorMessage = typeof metadata.error_message === 'string' ? metadata.error_message : '';
   const creditsRefunded = Boolean(metadata.credits_refunded);
+  const providerStatus = typeof metadata.provider_status === 'string' ? metadata.provider_status : '';
+  const providerPending = providerStatus === 'provider_confirmation_pending' || providerStatus === 'worker_confirmation_timeout';
 
   if (notification.kind === 'generation_queued') {
     return {
@@ -70,6 +74,12 @@ function formatNotification(notification: UserNotification, locale: 'ru' | 'en')
   }
 
   if (notification.kind === 'generation_failed') {
+    if (providerPending || (!creditsRefunded && !errorMessage)) {
+      return {
+        title: copy.failedTitle,
+        message: copy.pendingMessage,
+      };
+    }
     const refundedText = creditsRefunded ? copy.failedMessage : errorMessage || notification.message || '';
     return {
       title: copy.failedTitle,

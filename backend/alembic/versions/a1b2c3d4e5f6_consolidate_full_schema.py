@@ -19,6 +19,13 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def _has_column(table_name: str, column_name: str) -> bool:
+    # Offline Alembic runs use a mock connection with no inspection API. The
+    # generated SQL is intended for a known target revision, so emit the
+    # additive column operation in that mode.
+    from alembic import context
+
+    if context.is_offline_mode():
+        return False
     inspector = sa.inspect(op.get_bind())
     return column_name in {column["name"] for column in inspector.get_columns(table_name)}
 

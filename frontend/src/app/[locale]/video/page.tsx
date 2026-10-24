@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { apiClient } from '@/lib/api';
 import { useAuth } from '@/components/AuthContext';
 import { trackGeneration } from '@/lib/generation-tracker';
+import { localizeProviderError } from '@/lib/generation-alerts';
 import { selectBestPrice, type PublicPriceEntry } from '@/lib/pricing';
 import { getPromptSafetyIssue } from '@/lib/prompt-safety';
 import {
@@ -471,8 +472,8 @@ function VideoAIToolContent() {
         typeof error === 'object' && error !== null && 'response' in error
           ? (error as { response?: { data?: { detail?: string } } }).response?.data?.detail
           : undefined;
-      const message = error instanceof Error ? error.message : backendMessage;
-      toast.error(message || t('error_generic'));
+      const message = backendMessage || (error instanceof Error ? error.message : undefined);
+      toast.error(localizeProviderError(message, locale) || t('error_generic'));
     } finally {
       setLoading(false);
     }

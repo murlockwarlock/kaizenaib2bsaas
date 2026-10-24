@@ -46,7 +46,14 @@ def get_db():
         db.close()
 
 def run_migrations():
-    """Apply incremental schema changes that create_all can't handle."""
+    """Apply legacy SQLite-only schema changes.
+
+    Production PostgreSQL databases are migrated by Alembic. This compatibility
+    path exists only for old local SQLite installations and now fails loudly on
+    unexpected SQL errors instead of silently starting with a partial schema.
+    """
+    if not settings.DATABASE_URL.startswith("sqlite"):
+        raise RuntimeError("run_migrations() is only supported for SQLite; use Alembic for PostgreSQL")
     migrations = [
         "ALTER TABLE model_pricing ADD COLUMN category VARCHAR",
         "ALTER TABLE model_pricing ADD COLUMN aspect_ratio VARCHAR",
@@ -63,6 +70,9 @@ def run_migrations():
         "ALTER TABLE pricing_plans ADD COLUMN recurring_days INTEGER DEFAULT 30",
         "ALTER TABLE payment_records ADD COLUMN product_type VARCHAR DEFAULT 'plan'",
         "ALTER TABLE payment_records ADD COLUMN credits_rate_per_100_snapshot FLOAT DEFAULT 0",
+        "ALTER TABLE payment_records ADD COLUMN idempotence_key VARCHAR",
+        "CREATE UNIQUE INDEX IF NOT EXISTS uq_payment_records_idempotence_key ON payment_records (idempotence_key)",
+        "ALTER TABLE payment_records ALTER COLUMN pricing_plan_id DROP NOT NULL",
         "ALTER TABLE users ADD COLUMN display_name VARCHAR",
         "ALTER TABLE users ADD COLUMN avatar_url VARCHAR",
         "ALTER TABLE users ADD COLUMN utm_code VARCHAR",
@@ -129,11 +139,19 @@ def run_migrations():
     ]
     with engine.connect() as conn:
         for sql in migrations:
+            # SQLite cannot execute PostgreSQL's ALTER COLUMN syntax. The
+            # current ORM schema already expresses this nullable field.
+            if "ALTER TABLE payment_records ALTER COLUMN" in sql:
+                continue
             try:
                 conn.execute(text(sql))
                 conn.commit()
-            except Exception:
-                pass  # Column already exists or table not yet created
+            except Exception as exc:
+                conn.rollback()
+                message = str(exc).lower()
+                if "duplicate column" in message or "already exists" in message:
+                    continue
+                raise RuntimeError(f"Legacy SQLite migration failed: {sql[:120]}") from exc
 
         try:
             plans_count = conn.execute(text("SELECT COUNT(*) FROM pricing_plans WHERE is_active = 1")).scalar() or 0
@@ -204,7 +222,8 @@ def run_migrations():
                 )
                 conn.commit()
         except Exception:
-            pass
+            conn.rollback()
+            raise
 
         try:
             conn.execute(
@@ -224,7 +243,8 @@ def run_migrations():
             )
             conn.commit()
         except Exception:
-            pass
+            conn.rollback()
+            raise
 
         try:
             faq_count = conn.execute(text("SELECT COUNT(*) FROM faqs")).scalar() or 0
@@ -257,4 +277,5 @@ def run_migrations():
                     )
                 conn.commit()
         except Exception:
-            pass
+            conn.rollback()
+            raise

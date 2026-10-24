@@ -1,11 +1,241 @@
-import httpx
+import asyncio
+import json
 import logging
+from typing import Any
 from urllib.parse import urlencode
+
+import httpx
+
 from core.config import settings
 
 logger = logging.getLogger(__name__)
 
+KIE_MAX_STATUS_RETRIES = 3
+KIE_RETRY_BACKOFF_SECONDS = 0.5
+
+
+def _coerce_bool(value: Any, default: bool = False) -> bool:
+    """Parse booleans coming from JSON forms without treating 'false' as true."""
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value != 0
+    normalized = str(value).strip().lower()
+    if normalized in {"true", "1", "yes", "y", "on"}:
+        return True
+    if normalized in {"false", "0", "no", "n", "off", ""}:
+        return False
+    return default
+
+
+class KieApiError(RuntimeError):
+    """A normalized KIE error with enough context for safe business decisions."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        code: int | str | None = None,
+        http_status: int | None = None,
+        retriable: bool = False,
+        uncertain: bool = False,
+        payload: dict[str, Any] | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.code = code
+        self.http_status = http_status
+        self.retriable = retriable
+        self.uncertain = uncertain
+        self.payload = payload or {}
+
+
+def _provider_message(payload: Any, fallback: str) -> str:
+    if isinstance(payload, dict):
+        for key in ("failMsg", "errorMessage", "msg", "message", "error"):
+            value = payload.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()[:1000]
+        for key in ("data", "response", "error"):
+            nested = payload.get(key)
+            if isinstance(nested, dict):
+                message = _provider_message(nested, "")
+                if message:
+                    return message
+    return fallback
+
+
+def _is_transient(code: int | str | None, http_status: int | None) -> bool:
+    try:
+        numeric_code = int(code) if code is not None else None
+    except (TypeError, ValueError):
+        numeric_code = None
+    return bool(
+        numeric_code in {408, 429}
+        or (numeric_code is not None and numeric_code >= 500)
+        or http_status in {408, 429}
+        or (http_status is not None and http_status >= 500)
+    )
+
+
+def _write_outcome_is_uncertain(code: int | str | None, http_status: int | None) -> bool:
+    """Return whether a failed write may nevertheless have been accepted.
+
+    KIE can return a provider/body error while keeping HTTP 200. Definite
+    client errors (including body-level 4xx and the documented rejected 429)
+    cannot have created a task and must be refundable by the worker. Network,
+    5xx, and malformed successful responses remain ambiguous for POSTs.
+    """
+    try:
+        numeric_code = int(code) if code is not None else None
+    except (TypeError, ValueError):
+        numeric_code = None
+
+    if http_status is not None and 400 <= http_status < 500:
+        return False
+    if numeric_code == 429:
+        return False
+    if numeric_code is not None and 400 <= numeric_code < 500:
+        return False
+    return True
+
+
+async def _request_json(
+    method: str,
+    path: str,
+    *,
+    headers: dict[str, str],
+    json_payload: dict[str, Any] | None = None,
+    params: dict[str, Any] | None = None,
+    timeout: float = 30,
+    retry_reads: bool = False,
+) -> dict[str, Any]:
+    """Call KIE and validate both HTTP status and KIE's body-level `code`.
+
+    KIE documents that many `/api/v1/*` errors are returned as HTTP 200 with a
+    non-200 `code`, so `raise_for_status()` alone is not sufficient.
+    """
+    normalized_method = method.upper()
+    url = f"{settings.KIE_API_URL.rstrip('/')}{path}"
+    # Reads retry all transient failures. Writes normally run once, except
+    # KIE's documented 429 rejection, which is guaranteed not to enter the
+    # queue and is therefore safe to replay.
+    attempts = KIE_MAX_STATUS_RETRIES
+
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        for attempt in range(attempts):
+            try:
+                response = await client.request(
+                    normalized_method,
+                    url,
+                    headers=headers,
+                    json=json_payload,
+                    params=params,
+                )
+            except (httpx.TimeoutException, httpx.NetworkError) as exc:
+                # A write timeout has unknown outcome. Do not replay it and do
+                # not pretend it was rejected; the worker will surface it as a
+                # provider confirmation problem instead of creating a duplicate.
+                if retry_reads and attempt < attempts - 1:
+                    await asyncio.sleep(KIE_RETRY_BACKOFF_SECONDS * (2**attempt))
+                    continue
+                raise KieApiError(
+                    "KIE provider did not respond",
+                    retriable=retry_reads,
+                    uncertain=normalized_method != "GET",
+                ) from exc
+
+            try:
+                payload = response.json()
+            except ValueError as exc:
+                transient = response.status_code >= 500
+                if retry_reads and transient and attempt < attempts - 1:
+                    await asyncio.sleep(KIE_RETRY_BACKOFF_SECONDS * (2**attempt))
+                    continue
+                raise KieApiError(
+                    "KIE provider returned an invalid response",
+                    http_status=response.status_code,
+                    retriable=retry_reads and transient,
+                    uncertain=normalized_method != "GET" and not (400 <= response.status_code < 500),
+                ) from exc
+
+            if not isinstance(payload, dict):
+                raise KieApiError(
+                    "KIE provider returned an invalid response",
+                    http_status=response.status_code,
+                    uncertain=normalized_method != "GET" and not (400 <= response.status_code < 500),
+                )
+
+            code = payload.get("code")
+            body_failed = code is not None and str(code) != "200"
+            http_failed = response.status_code >= 400
+            transient = _is_transient(code, response.status_code)
+            if not body_failed and not http_failed:
+                return payload
+
+            # GET status/credit calls are safe to retry. For createTask, only
+            # KIE's documented 429 rejection is safe to replay; a 5xx or
+            # network timeout may have created a task already.
+            safe_to_retry = retry_reads or str(code) == "429" or response.status_code == 429
+            if safe_to_retry and transient and attempt < attempts - 1:
+                await asyncio.sleep(KIE_RETRY_BACKOFF_SECONDS * (2**attempt))
+                continue
+
+            message = _provider_message(payload, f"KIE request failed ({code or response.status_code})")
+            raise KieApiError(
+                message,
+                code=code,
+                http_status=response.status_code,
+                retriable=transient,
+                uncertain=normalized_method != "GET" and _write_outcome_is_uncertain(code, response.status_code),
+                payload=payload,
+            )
+
+    raise KieApiError("KIE provider request failed")
+
+
+def _callback_url() -> str | None:
+    token = settings.KIE_CALLBACK_TOKEN or settings.SUNO_CALLBACK_TOKEN
+    if not settings.public_base_url or not token:
+        return None
+    query = urlencode({"token": token})
+    return f"{settings.public_base_url}/api/v1/ai/kie/callback?{query}"
+
+
+async def _create_task_request(
+    path: str,
+    payload: dict[str, Any],
+    *,
+    label: str,
+    include_callback: bool = False,
+) -> str:
+    request_payload = dict(payload)
+    if include_callback:
+        callback_url = _callback_url()
+        if callback_url:
+            request_payload["callBackUrl"] = callback_url
+
+    data = await _request_json(
+        "POST",
+        path,
+        headers={
+            "Authorization": f"Bearer {settings.KIE_API_KEY}",
+            "Content-Type": "application/json",
+        },
+        json_payload=request_payload,
+    )
+    task_id = data.get("data", {}).get("taskId") if isinstance(data.get("data"), dict) else None
+    if not task_id:
+        # HTTP 200 without a task id is not a definite rejection: the
+        # provider may have accepted the task but returned a malformed or
+        # partial response. Keep the reservation until the outcome is
+        # confirmed instead of refunding and risking a duplicate retry.
+        raise KieApiError(f"{label} did not return a task id", uncertain=True, payload=data)
+    return str(task_id)
+
 SUNO_PREFIX = "suno/"
+SUNO_CREATE_MODEL = "ai-music-api/generate"
 RUNWAY_GENERATE_PREFIX = "runway-generate/"
 RUNWAY_EXTEND_PREFIX = "runway-extend/"
 ALEPH_PREFIX = "aleph/"
@@ -23,6 +253,11 @@ VEO_IMAGE_QUALITY_MODEL = "veo-3.1/image-quality"
 VEO_REFERENCE_FAST_MODEL = "veo-3.1/reference-fast"
 VEO_EXTEND_FAST_MODEL = "veo-3.1/extend-fast"
 VEO_EXTEND_QUALITY_MODEL = "veo-3.1/extend-quality"
+GEMINI_TTS_MODELS = {
+    "google/gemini-3-8-flash-tts",
+    "google/gemini-3-1-flash-tts",
+    "google/gemini-3-8-flash-lite-tts",
+}
 VEO_GENERATE_MODELS = {
     VEO_TEXT_FAST_MODEL,
     VEO_TEXT_QUALITY_MODEL,
@@ -166,9 +401,62 @@ def normalize_elevenlabs_inputs(model: str, inputs: dict) -> dict:
 
     return normalized
 
+
+def normalize_gemini_tts_inputs(model: str, inputs: dict) -> dict:
+    """Adapt the app's dialogue form to Gemini's speaker/turn contract."""
+    normalized = dict(inputs or {})
+    dialogue = normalized.get("dialogue")
+    if not isinstance(dialogue, list):
+        dialogue = []
+
+    default_voices = (
+        ("Fenrir", "Puck")
+        if model == "google/gemini-3-1-flash-tts"
+        else ("Fola", "Zephyr")
+    )
+    speakers: list[dict[str, str]] = []
+    speaker_ids_by_voice: dict[str, str] = {}
+    dialogue_turns: list[dict[str, str]] = []
+
+    for item in dialogue[:100]:
+        if not isinstance(item, dict):
+            continue
+        text = str(item.get("text") or "").strip()
+        if not text:
+            continue
+        voice_key = str(item.get("voice") or "").strip().lower()
+        if voice_key not in speaker_ids_by_voice:
+            # Gemini TTS currently documents a two-speaker contract. Reuse
+            # the second provider voice for additional UI voice labels rather
+            # than sending an invalid third speaker definition.
+            speaker_index = min(len(speaker_ids_by_voice), len(default_voices) - 1)
+            speaker_id = f"Speaker {speaker_index + 1}"
+            provider_voice = default_voices[speaker_index]
+            speaker_ids_by_voice[voice_key] = speaker_id
+            if not any(item["speaker_id"] == speaker_id for item in speakers):
+                speakers.append({"speaker_id": speaker_id, "voice_name": provider_voice})
+        speaker_id = speaker_ids_by_voice[voice_key]
+        turn = {"speaker_id": speaker_id, "text": text}
+        style = str(item.get("style") or "").strip()
+        if style:
+            turn["style"] = style[:1000]
+        dialogue_turns.append(turn)
+
+    return {
+        "temperature": 1,
+        "speakers": speakers,
+        "dialogue_turns": dialogue_turns,
+    }
+
 def get_kie_remaining_credits_sync() -> int | None:
     if settings.KIE_API_KEY == "mock_key":
         return 9999
+    if not settings.KIE_API_KEY:
+        # Do not make a network request with an invalid `Bearer ` header when
+        # provider access is intentionally disabled (for example on a fresh
+        # production install). The admin dashboard can render the metric as
+        # unavailable without producing noisy traceback logs.
+        return None
 
     try:
         with httpx.Client(timeout=15) as client:
@@ -176,10 +464,12 @@ def get_kie_remaining_credits_sync() -> int | None:
                 f"{settings.KIE_API_URL}/api/v1/chat/credit",
                 headers={"Authorization": f"Bearer {settings.KIE_API_KEY}"}
             )
-            response.raise_for_status()
             data = response.json()
-            if isinstance(data, dict) and data.get("code") == 200:
-                return int(data.get("data"))
+            if isinstance(data, dict) and str(data.get("code")) == "200":
+                value = data.get("data")
+                if isinstance(value, dict):
+                    value = value.get("credits") or value.get("remainingCredits") or value.get("balance")
+                return int(value)
             logger.warning("Unexpected KIE credit response: %s", data)
     except Exception:
         logger.exception("Failed to fetch KIE remaining credits")
@@ -195,6 +485,11 @@ async def request_kie_generation(model: str, inputs: dict):
 
     if _is_suno(provider_model):
         return await _request_suno_generation(provider_model, inputs)
+
+    if provider_model in GEMINI_TTS_MODELS:
+        inputs = normalize_gemini_tts_inputs(provider_model, inputs)
+        if not inputs["dialogue_turns"]:
+            raise KieApiError("Gemini TTS requires at least one non-empty dialogue turn")
 
     if provider_model.startswith("elevenlabs/"):
         inputs = normalize_elevenlabs_inputs(provider_model, inputs)
@@ -216,82 +511,78 @@ async def request_kie_generation(model: str, inputs: dict):
             return await _request_veo_extend(inputs)
         return await _request_veo_generation(provider_model, inputs)
 
-    async with httpx.AsyncClient() as client:
-        headers = {
-            "Authorization": f"Bearer {settings.KIE_API_KEY}",
-            "Content-Type": "application/json"
-        }
-        payload = {
-            "model": provider_model,
-            "input": inputs
-        }
+    headers = {
+        "Authorization": f"Bearer {settings.KIE_API_KEY}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "model": provider_model,
+        "input": inputs,
+    }
+    callback_url = _callback_url()
+    if callback_url:
+        payload["callBackUrl"] = callback_url
 
-        logger.info("Requesting KIE Generation for model: %s", provider_model)
-        logger.debug("Payload Input: %s", inputs)
+    logger.info("Requesting KIE generation for model: %s", provider_model)
+    data = await _request_json(
+        "POST",
+        "/api/v1/jobs/createTask",
+        headers=headers,
+        json_payload=payload,
+    )
 
-        response = await client.post(
-            f"{settings.KIE_API_URL}/api/v1/jobs/createTask",
-            json=payload,
-            headers=headers
-        )
-        response.raise_for_status()
-        data = response.json()
+    task_id = data.get("data", {}).get("taskId") if isinstance(data.get("data"), dict) else None
+    if not task_id:
+        raise KieApiError("KIE provider did not return a task id", uncertain=True, payload=data)
 
-        if not isinstance(data, dict):
-            raise ValueError(f"Unexpected response from KIE API: {response.text}")
-
-        task_id = data.get("data", {}).get("taskId") if data.get("data") else None
-        if not task_id:
-            raise ValueError(f"KIE API Error, no taskId returned. Response: {data}")
-
-        return task_id
+    return str(task_id)
 
 async def _request_suno_generation(model: str, inputs: dict):
-    """Suno music generation uses a separate endpoint and payload format."""
-    suno_model = model[len(SUNO_PREFIX):]  # e.g. "suno/V5" -> "V5"
-    async with httpx.AsyncClient(timeout=30) as client:
-        headers = {
-            "Authorization": f"Bearer {settings.KIE_API_KEY}",
-            "Content-Type": "application/json"
-        }
-        callback_url = ""
-        if settings.public_base_url and settings.SUNO_CALLBACK_TOKEN:
-            query = urlencode({"token": settings.SUNO_CALLBACK_TOKEN})
-            callback_url = f"{settings.public_base_url}/api/v1/ai/suno/callback?{query}"
+    """Create Suno tasks through KIE's current unified task API."""
+    suno_model = model[len(SUNO_PREFIX):].upper()
+    custom_mode = _coerce_bool(inputs.get("custom_mode", inputs.get("customMode")), False)
+    task_input: dict[str, Any] = {
+        "custom_mode": custom_mode,
+        "instrumental": _coerce_bool(inputs.get("instrumental"), False),
+        "model": suno_model,
+    }
+    prompt = str(inputs.get("prompt") or "").strip()
+    style = str(inputs.get("style") or "").strip()
+    title = str(inputs.get("title") or "").strip()
+    if prompt:
+        task_input["prompt"] = prompt[:5000 if custom_mode else 3000]
+    if style:
+        task_input["style"] = style[:1000]
+    if custom_mode:
+        task_input["title"] = (title or "AI Song")[:80]
+    for source_key, target_key in (
+        ("negative_tags", "negative_tags"),
+        ("negativeTags", "negative_tags"),
+        ("lyrics", "lyrics"),
+        ("persona_id", "persona_id"),
+        ("personaId", "persona_id"),
+    ):
+        value = str(inputs.get(source_key) or "").strip()
+        if value and target_key not in task_input:
+            task_input[target_key] = value[:5000 if target_key == "lyrics" else 1000]
 
-        payload = {
-            "prompt": inputs.get("prompt", ""),
-            "model": suno_model,
-            "customMode": inputs.get("customMode", False),
-            "instrumental": inputs.get("instrumental", False),
-        }
-        if callback_url:
-            payload["callBackUrl"] = callback_url
-        if inputs.get("style"):
-            payload["style"] = inputs["style"]
-        if inputs.get("title"):
-            payload["title"] = inputs["title"]
-        if inputs.get("negativeTags"):
-            payload["negativeTags"] = inputs["negativeTags"]
+    # The current non-custom contract does not accept the legacy duration
+    # field. Preserve duration only for the V6 custom-mode variants.
+    if custom_mode and suno_model in {"V6", "V6_MINI", "V6_WILD"}:
+        duration = inputs.get("duration")
+        if isinstance(duration, (int, float)) and not isinstance(duration, bool):
+            task_input["duration"] = min(max(int(duration), 10), 360)
 
-        logger.info("Requesting Suno generation, model: %s", suno_model)
-        response = await client.post(
-            f"{settings.KIE_API_URL}/api/v1/generate",
-            json=payload,
-            headers=headers
-        )
-        response.raise_for_status()
-        data = response.json()
-
-        if not isinstance(data, dict):
-            raise ValueError(f"Unexpected Suno response: {response.text}")
-
-        task_id = data.get("data", {}).get("taskId") if data.get("data") else None
-        if not task_id:
-            raise ValueError(f"Suno API Error, no taskId returned. Response: {data}")
-
-        # Prefix so status check knows to use Suno endpoint
-        return f"{SUNO_PREFIX}{task_id}"
+    logger.info("Requesting Suno generation, model: %s", suno_model)
+    task_id = await _create_task_request(
+        "/api/v1/jobs/createTask",
+        {"model": SUNO_CREATE_MODEL, "input": task_input},
+        label="Suno API",
+        include_callback=True,
+    )
+    # Current Suno tasks use the same unified recordInfo endpoint as other
+    # market models. Legacy `suno/<id>` task IDs remain supported below.
+    return task_id
 
 def _normalize_runway_quality(value: str | None) -> str:
     lowered = str(value or "720p").strip().lower()
@@ -324,22 +615,12 @@ async def _request_runway_generation(inputs: dict):
     else:
         payload["aspectRatio"] = _normalize_runway_aspect_ratio(inputs.get("aspect_ratio"))
 
-    async with httpx.AsyncClient(timeout=30) as client:
-        headers = {
-            "Authorization": f"Bearer {settings.KIE_API_KEY}",
-            "Content-Type": "application/json",
-        }
-        response = await client.post(
-            f"{settings.KIE_API_URL}/api/v1/runway/generate",
-            json=payload,
-            headers=headers,
-        )
-        response.raise_for_status()
-        data = response.json()
-        task_id = data.get("data", {}).get("taskId") if isinstance(data, dict) and data.get("data") else None
-        if not task_id:
-            raise ValueError(f"Runway API Error, no taskId returned. Response: {data}")
-        return f"{RUNWAY_GENERATE_PREFIX}{task_id}"
+    task_id = await _create_task_request(
+        "/api/v1/runway/generate",
+        payload,
+        label="Runway API",
+    )
+    return f"{RUNWAY_GENERATE_PREFIX}{task_id}"
 
 async def _request_runway_extend(inputs: dict):
     payload = {
@@ -353,22 +634,12 @@ async def _request_runway_extend(inputs: dict):
     if image_url:
         payload["imageUrl"] = image_url
 
-    async with httpx.AsyncClient(timeout=30) as client:
-        headers = {
-            "Authorization": f"Bearer {settings.KIE_API_KEY}",
-            "Content-Type": "application/json",
-        }
-        response = await client.post(
-            f"{settings.KIE_API_URL}/api/v1/runway/extend",
-            json=payload,
-            headers=headers,
-        )
-        response.raise_for_status()
-        data = response.json()
-        task_id = data.get("data", {}).get("taskId") if isinstance(data, dict) and data.get("data") else None
-        if not task_id:
-            raise ValueError(f"Runway Extend API Error, no taskId returned. Response: {data}")
-        return f"{RUNWAY_EXTEND_PREFIX}{task_id}"
+    task_id = await _create_task_request(
+        "/api/v1/runway/extend",
+        payload,
+        label="Runway Extend API",
+    )
+    return f"{RUNWAY_EXTEND_PREFIX}{task_id}"
 
 async def _request_aleph_generation(inputs: dict):
     payload = {
@@ -387,22 +658,12 @@ async def _request_aleph_generation(inputs: dict):
     if isinstance(seed, int):
         payload["seed"] = seed
 
-    async with httpx.AsyncClient(timeout=30) as client:
-        headers = {
-            "Authorization": f"Bearer {settings.KIE_API_KEY}",
-            "Content-Type": "application/json",
-        }
-        response = await client.post(
-            f"{settings.KIE_API_URL}/api/v1/aleph/generate",
-            json=payload,
-            headers=headers,
-        )
-        response.raise_for_status()
-        data = response.json()
-        task_id = data.get("data", {}).get("taskId") if isinstance(data, dict) and data.get("data") else None
-        if not task_id:
-            raise ValueError(f"Aleph API Error, no taskId returned. Response: {data}")
-        return f"{ALEPH_PREFIX}{task_id}"
+    task_id = await _create_task_request(
+        "/api/v1/aleph/generate",
+        payload,
+        label="Aleph API",
+    )
+    return f"{ALEPH_PREFIX}{task_id}"
 
 async def _request_flux_kontext_generation(model: str, inputs: dict):
     payload = {
@@ -431,22 +692,12 @@ async def _request_flux_kontext_generation(model: str, inputs: dict):
 
     payload = {key: value for key, value in payload.items() if value not in ("", None)}
 
-    async with httpx.AsyncClient(timeout=30) as client:
-        headers = {
-            "Authorization": f"Bearer {settings.KIE_API_KEY}",
-            "Content-Type": "application/json",
-        }
-        response = await client.post(
-            f"{settings.KIE_API_URL}/api/v1/flux/kontext/generate",
-            json=payload,
-            headers=headers,
-        )
-        response.raise_for_status()
-        data = response.json()
-        task_id = data.get("data", {}).get("taskId") if isinstance(data, dict) and data.get("data") else None
-        if not task_id:
-            raise ValueError(f"Flux Kontext API Error, no taskId returned. Response: {data}")
-        return f"{FLUX_KONTEXT_PREFIX}{task_id}"
+    task_id = await _create_task_request(
+        "/api/v1/flux/kontext/generate",
+        payload,
+        label="Flux Kontext API",
+    )
+    return f"{FLUX_KONTEXT_PREFIX}{task_id}"
 
 async def _request_veo_generation(model: str, inputs: dict):
     provider_model = "veo3_fast" if model in {VEO_TEXT_FAST_MODEL, VEO_IMAGE_FAST_MODEL, VEO_REFERENCE_FAST_MODEL} else "veo3"
@@ -466,22 +717,12 @@ async def _request_veo_generation(model: str, inputs: dict):
 
     payload = {key: value for key, value in payload.items() if value not in ("", None)}
 
-    async with httpx.AsyncClient(timeout=30) as client:
-        headers = {
-            "Authorization": f"Bearer {settings.KIE_API_KEY}",
-            "Content-Type": "application/json",
-        }
-        response = await client.post(
-            f"{settings.KIE_API_URL}/api/v1/veo/generate",
-            json=payload,
-            headers=headers,
-        )
-        response.raise_for_status()
-        data = response.json()
-        task_id = data.get("data", {}).get("taskId") if isinstance(data, dict) and data.get("data") else None
-        if not task_id:
-            raise ValueError(f"VEO API Error, no taskId returned. Response: {data}")
-        return f"{VEO_GENERATE_PREFIX}{task_id}"
+    task_id = await _create_task_request(
+        "/api/v1/veo/generate",
+        payload,
+        label="VEO API",
+    )
+    return f"{VEO_GENERATE_PREFIX}{task_id}"
 
 async def _request_veo_extend(inputs: dict):
     payload = {
@@ -492,188 +733,269 @@ async def _request_veo_extend(inputs: dict):
     }
     payload = {key: value for key, value in payload.items() if value not in ("", None)}
 
-    async with httpx.AsyncClient(timeout=30) as client:
-        headers = {
-            "Authorization": f"Bearer {settings.KIE_API_KEY}",
-            "Content-Type": "application/json",
-        }
-        response = await client.post(
-            f"{settings.KIE_API_URL}/api/v1/veo/extend",
-            json=payload,
-            headers=headers,
-        )
-        response.raise_for_status()
-        data = response.json()
-        task_id = data.get("data", {}).get("taskId") if isinstance(data, dict) and data.get("data") else None
-        if not task_id:
-            raise ValueError(f"VEO Extend API Error, no taskId returned. Response: {data}")
-        return f"{VEO_EXTEND_PREFIX}{task_id}"
+    task_id = await _create_task_request(
+        "/api/v1/veo/extend",
+        payload,
+        label="VEO Extend API",
+    )
+    return f"{VEO_EXTEND_PREFIX}{task_id}"
 
 def _map_vendor_status(status: str | None):
     normalized = str(status or "").strip().lower()
-    if normalized in {"success", "succeeded", "completed", "complete"}:
+    if normalized in {"success", "succeeded", "completed", "complete", "1", "true"}:
         return "success"
-    if normalized in {"failed", "fail", "error", "cancelled", "canceled"}:
+    if normalized in {"failed", "fail", "error", "cancelled", "canceled", "2", "3", "false"}:
         return "failed"
     return "processing"
 
 
 def _extract_provider_error_message(data: dict | None, fallback: str) -> str:
-    if not isinstance(data, dict):
-        return fallback
-    for key in ("failMsg", "errorMessage", "msg", "message", "error"):
-        value = data.get(key)
-        if isinstance(value, str) and value.strip():
-            return value.strip()
-    return fallback
+    return _provider_message(data, fallback)
+
+
+def _extract_result_url(value: Any) -> str | None:
+    """Extract the first usable result URL from KIE's changing result shapes."""
+    if isinstance(value, str):
+        candidate = value.strip()
+        if not candidate:
+            return None
+        if candidate.startswith("{") or candidate.startswith("["):
+            try:
+                return _extract_result_url(json.loads(candidate))
+            except (TypeError, ValueError, json.JSONDecodeError):
+                return None
+        return candidate
+    if isinstance(value, list):
+        for item in value:
+            result = _extract_result_url(item)
+            if result:
+                return result
+        return None
+    if not isinstance(value, dict):
+        return None
+
+    for key in (
+        "resultUrls",
+        "result_urls",
+        "url",
+        "result_url",
+        "resultUrl",
+        "videoUrl",
+        "video_url",
+        "audioUrl",
+        "audio_url",
+        "imageUrl",
+        "image_url",
+        "resultVideoUrl",
+        "resultImageUrl",
+        "data",
+        "result",
+        "output",
+        "images",
+        "videos",
+        "audios",
+        "sunoData",
+        "resultJson",
+        "response",
+        "info",
+    ):
+        result = _extract_result_url(value.get(key))
+        if result:
+            return result
+    return None
+
+
+def _build_status_result(
+    *,
+    status: str,
+    output_url: str | None,
+    provider_status: Any,
+    raw_response: dict[str, Any],
+    error_message: str | None,
+) -> dict[str, Any]:
+    # A provider sometimes reports success before attaching the result. Do
+    # not leave the user charged for a task that cannot produce a usable file.
+    if status == "success" and not output_url:
+        status = "failed"
+        error_message = "Provider reported success without a result"
+    return {
+        "status": status,
+        "output_url": output_url,
+        "provider_status": provider_status,
+        "raw_response": raw_response,
+        "error_message": error_message if status == "failed" else None,
+    }
+
+
+def normalize_kie_task_response(
+    payload: dict[str, Any],
+    *,
+    strict: bool = True,
+) -> dict[str, Any]:
+    """Normalize generic KIE task responses and callbacks to one contract."""
+    if not isinstance(payload, dict):
+        raise KieApiError("KIE provider returned an invalid task response")
+
+    code = payload.get("code")
+    if strict and code is not None and str(code) != "200":
+        raise KieApiError(
+            _provider_message(payload, f"KIE task request failed ({code})"),
+            code=code,
+            payload=payload,
+        )
+
+    data = payload.get("data") if isinstance(payload.get("data"), dict) else payload
+    provider_status = data.get("state") or data.get("status") or data.get("successFlag")
+    normalized_status = _map_vendor_status(str(provider_status) if provider_status is not None else None)
+
+    # Some callbacks provide resultJson as a JSON string, while newer
+    # endpoints put the same object under info/response directly.
+    output_url = _extract_result_url(data)
+    # Some KIE-compatible endpoints omit a state in their final response and
+    # return only the output object. A usable result is definitive evidence of
+    # completion; without it, keep the task in processing instead of charging
+    # a task that has no downloadable result.
+    if provider_status is None and output_url:
+        normalized_status = "success"
+    error_message = _provider_message(data, f"KIE returned status {provider_status}")
+    if normalized_status != "failed":
+        error_message = None
+    return _build_status_result(
+        status=normalized_status,
+        output_url=output_url,
+        provider_status=provider_status,
+        raw_response=data,
+        error_message=error_message,
+    )
 
 async def _check_runway_status(raw_task_id: str):
-    async with httpx.AsyncClient(timeout=30) as client:
-        headers = {"Authorization": f"Bearer {settings.KIE_API_KEY}"}
-        response = await client.get(
-            f"{settings.KIE_API_URL}/api/v1/runway/record-detail",
-            params={"taskId": raw_task_id},
-            headers=headers,
-        )
-        response.raise_for_status()
-        data = response.json().get("data", {})
-        provider_status = data.get("state") or data.get("status")
-        video_info = data.get("videoInfo") or {}
-        output_url = video_info.get("videoUrl") or data.get("videoUrl")
-        internal_status = _map_vendor_status(provider_status)
-        return {
-            "status": internal_status,
-            "output_url": output_url,
-            "provider_status": provider_status,
-            "raw_response": data,
-            "error_message": None if internal_status != "failed" else _extract_provider_error_message(
-                data,
-                f"Runway returned status {provider_status}",
-            ),
-        }
+    data = await _request_json(
+        "GET",
+        "/api/v1/runway/record-detail",
+        headers={"Authorization": f"Bearer {settings.KIE_API_KEY}"},
+        params={"taskId": raw_task_id},
+        retry_reads=True,
+    )
+    body = data.get("data") if isinstance(data.get("data"), dict) else {}
+    provider_status = body.get("state") or body.get("status")
+    output_url = _extract_result_url(body.get("videoInfo") or body)
+    internal_status = _map_vendor_status(provider_status)
+    return _build_status_result(
+        status=internal_status,
+        output_url=output_url,
+        provider_status=provider_status,
+        raw_response=body,
+        error_message=None if internal_status != "failed" else _extract_provider_error_message(
+            body,
+            f"Runway returned status {provider_status}",
+        ),
+    )
 
 async def _check_aleph_status(raw_task_id: str):
-    async with httpx.AsyncClient(timeout=30) as client:
-        headers = {"Authorization": f"Bearer {settings.KIE_API_KEY}"}
-        response = await client.get(
-            f"{settings.KIE_API_URL}/api/v1/aleph/record-info",
-            params={"taskId": raw_task_id},
-            headers=headers,
-        )
-        response.raise_for_status()
-        data = response.json().get("data", {})
+    headers = {"Authorization": f"Bearer {settings.KIE_API_KEY}"}
+    response = await _request_json(
+        "GET",
+        "/api/v1/aleph/record-info",
+        headers=headers,
+        params={"taskId": raw_task_id},
+        retry_reads=True,
+    )
+    data = response.get("data") if isinstance(response.get("data"), dict) else {}
 
-        if isinstance(data, dict) and "successFlag" in data:
-            success_flag = data.get("successFlag")
-            output_url = (data.get("response") or {}).get("resultVideoUrl")
-            error_message = _extract_provider_error_message(data, f"Aleph returned successFlag {success_flag}")
-
-            if success_flag == 1:
-                internal_status = "success"
-            elif error_message and success_flag == 0:
-                internal_status = "failed"
-            else:
-                internal_status = "processing"
-
-            return {
-                "status": internal_status,
-                "output_url": output_url,
-                "provider_status": str(success_flag),
-                "raw_response": data,
-                "error_message": None if internal_status != "failed" else error_message,
-            }
-
-        # Backward-compatible fallback for older payload shapes.
-        response = await client.get(
-            f"{settings.KIE_API_URL}/api/v1/aleph/record-detail",
-            params={"taskId": raw_task_id},
-            headers=headers,
-        )
-        response.raise_for_status()
-        data = response.json().get("data", {})
-        provider_status = data.get("state") or data.get("status")
-        video_info = data.get("videoInfo") or {}
-        output_url = video_info.get("videoUrl") or data.get("videoUrl")
-        internal_status = _map_vendor_status(provider_status)
-        return {
-            "status": internal_status,
-            "output_url": output_url,
-            "provider_status": provider_status,
-            "raw_response": data,
-            "error_message": None if internal_status != "failed" else _extract_provider_error_message(
+    if "successFlag" in data:
+        success_flag = data.get("successFlag")
+        if success_flag == 1:
+            internal_status = "success"
+        elif success_flag in {2, 3} or (success_flag == 0 and _provider_message(data, "")):
+            internal_status = "failed"
+        else:
+            internal_status = "processing"
+        return _build_status_result(
+            status=internal_status,
+            output_url=_extract_result_url(data),
+            provider_status=str(success_flag),
+            raw_response=data,
+            error_message=None if internal_status != "failed" else _extract_provider_error_message(
                 data,
-                f"Aleph returned status {provider_status}",
+                f"Aleph returned successFlag {success_flag}",
             ),
-        }
+        )
+
+    # Backward-compatible fallback for older payload shapes.
+    response = await _request_json(
+        "GET",
+        "/api/v1/aleph/record-detail",
+        headers=headers,
+        params={"taskId": raw_task_id},
+        retry_reads=True,
+    )
+    data = response.get("data") if isinstance(response.get("data"), dict) else {}
+    provider_status = data.get("state") or data.get("status")
+    internal_status = _map_vendor_status(provider_status)
+    return _build_status_result(
+        status=internal_status,
+        output_url=_extract_result_url(data),
+        provider_status=provider_status,
+        raw_response=data,
+        error_message=None if internal_status != "failed" else _extract_provider_error_message(
+            data,
+            f"Aleph returned status {provider_status}",
+        ),
+    )
 
 async def _check_flux_kontext_status(raw_task_id: str):
-    async with httpx.AsyncClient(timeout=30) as client:
-        headers = {"Authorization": f"Bearer {settings.KIE_API_KEY}"}
-        response = await client.get(
-            f"{settings.KIE_API_URL}/api/v1/flux/kontext/record-info",
-            params={"taskId": raw_task_id},
-            headers=headers,
-        )
-        response.raise_for_status()
-        data = response.json().get("data", {})
-        success_flag = data.get("successFlag")
-        output_url = (data.get("response") or {}).get("resultImageUrl")
-        if success_flag == 1:
-            internal_status = "success"
-        elif success_flag in {2, 3}:
-            internal_status = "failed"
-        else:
-            internal_status = "processing"
-        return {
-            "status": internal_status,
-            "output_url": output_url,
-            "provider_status": str(success_flag),
-            "raw_response": data,
-            "error_message": None if internal_status != "failed" else _extract_provider_error_message(
-                data,
-                f"Flux Kontext returned successFlag {success_flag}",
-            ),
-        }
+    response = await _request_json(
+        "GET",
+        "/api/v1/flux/kontext/record-info",
+        headers={"Authorization": f"Bearer {settings.KIE_API_KEY}"},
+        params={"taskId": raw_task_id},
+        retry_reads=True,
+    )
+    data = response.get("data") if isinstance(response.get("data"), dict) else {}
+    success_flag = data.get("successFlag")
+    if success_flag == 1:
+        internal_status = "success"
+    elif success_flag in {2, 3}:
+        internal_status = "failed"
+    else:
+        internal_status = "processing"
+    return _build_status_result(
+        status=internal_status,
+        output_url=_extract_result_url(data),
+        provider_status=str(success_flag),
+        raw_response=data,
+        error_message=None if internal_status != "failed" else _extract_provider_error_message(
+            data,
+            f"Flux Kontext returned successFlag {success_flag}",
+        ),
+    )
 
 async def _check_veo_status(raw_task_id: str):
-    async with httpx.AsyncClient(timeout=30) as client:
-        headers = {"Authorization": f"Bearer {settings.KIE_API_KEY}"}
-        response = await client.get(
-            f"{settings.KIE_API_URL}/api/v1/veo/record-info",
-            params={"taskId": raw_task_id},
-            headers=headers,
-        )
-        response.raise_for_status()
-        data = response.json().get("data", {})
-        success_flag = data.get("successFlag")
-        response_data = data.get("response") or {}
-
-        result_urls = response_data.get("resultUrls") or data.get("resultUrls") or []
-        output_url = None
-        if isinstance(result_urls, list) and result_urls:
-            output_url = result_urls[0]
-        elif isinstance(response_data.get("resultVideoUrl"), str):
-            output_url = response_data.get("resultVideoUrl")
-        elif isinstance(data.get("resultVideoUrl"), str):
-            output_url = data.get("resultVideoUrl")
-
-        if success_flag == 1:
-            internal_status = "success"
-        elif success_flag in {2, 3}:
-            internal_status = "failed"
-        else:
-            internal_status = "processing"
-
-        return {
-            "status": internal_status,
-            "output_url": output_url,
-            "provider_status": str(success_flag),
-            "raw_response": data,
-            "error_message": None if internal_status != "failed" else _extract_provider_error_message(
-                data,
-                f"VEO returned successFlag {success_flag}",
-            ),
-        }
+    response = await _request_json(
+        "GET",
+        "/api/v1/veo/record-info",
+        headers={"Authorization": f"Bearer {settings.KIE_API_KEY}"},
+        params={"taskId": raw_task_id},
+        retry_reads=True,
+    )
+    data = response.get("data") if isinstance(response.get("data"), dict) else {}
+    success_flag = data.get("successFlag")
+    if success_flag == 1:
+        internal_status = "success"
+    elif success_flag in {2, 3}:
+        internal_status = "failed"
+    else:
+        internal_status = "processing"
+    return _build_status_result(
+        status=internal_status,
+        output_url=_extract_result_url(data),
+        provider_status=str(success_flag),
+        raw_response=data,
+        error_message=None if internal_status != "failed" else _extract_provider_error_message(
+            data,
+            f"VEO returned successFlag {success_flag}",
+        ),
+    )
 
 async def check_task_status(task_id: str):
     if settings.KIE_API_KEY == "mock_key":
@@ -699,89 +1021,47 @@ async def check_task_status(task_id: str):
     if task_id.startswith(VEO_EXTEND_PREFIX):
         return await _check_veo_status(task_id[len(VEO_EXTEND_PREFIX):])
 
-    async with httpx.AsyncClient() as client:
-        headers = {
-            "Authorization": f"Bearer {settings.KIE_API_KEY}"
-        }
-        response = await client.get(
-            f"{settings.KIE_API_URL}/api/v1/jobs/recordInfo",
-            params={"taskId": task_id},
-            headers=headers
-        )
-        response.raise_for_status()
-        data = response.json().get("data", {})
-
-        state = data.get("state")
-
-        import json
-
-        result_url = None
-        if state == "success":
-            try:
-                result_json_str = data.get("resultJson", "{}")
-                result_json = json.loads(result_json_str)
-                if "resultUrls" in result_json and result_json["resultUrls"]:
-                    result_url = result_json["resultUrls"][0]
-                elif "url" in result_json:
-                    result_url = result_json["url"]
-                elif "result_url" in result_json:
-                    result_url = result_json["result_url"]
-            except Exception:
-                pass
-
-        internal_status = "processing"
-        if state == "success":
-            internal_status = "success"
-        elif state == "fail":
-            internal_status = "failed"
-
-        return {
-            "status": internal_status,
-            "output_url": result_url,
-            "provider_status": state,
-            "raw_response": data,
-            "error_message": None if internal_status != "failed" else _extract_provider_error_message(
-                data,
-                f"KIE returned state {state}",
-            ),
-        }
+    response = await _request_json(
+        "GET",
+        "/api/v1/jobs/recordInfo",
+        headers={"Authorization": f"Bearer {settings.KIE_API_KEY}"},
+        params={"taskId": task_id},
+        retry_reads=True,
+    )
+    return normalize_kie_task_response(response)
 
 async def _check_suno_status(raw_task_id: str):
     """Check status for Suno music generation tasks."""
-    async with httpx.AsyncClient() as client:
-        headers = {
-            "Authorization": f"Bearer {settings.KIE_API_KEY}"
-        }
-        response = await client.get(
-            f"{settings.KIE_API_URL}/api/v1/generate/record-info",
-            params={"taskId": raw_task_id},
-            headers=headers
-        )
-        response.raise_for_status()
-        data = response.json().get("data", {})
-
-        status = data.get("status", "")
-        failed_states = {"CREATE_TASK_FAILED", "GENERATE_AUDIO_FAILED", "CALLBACK_EXCEPTION", "SENSITIVE_WORD_ERROR"}
-
-        result_url = None
-        if status == "SUCCESS":
-            suno_data = data.get("response", {}).get("sunoData", [])
-            if suno_data and isinstance(suno_data, list):
-                result_url = suno_data[0].get("audioUrl")
-
+    response = await _request_json(
+        "GET",
+        "/api/v1/generate/record-info",
+        headers={"Authorization": f"Bearer {settings.KIE_API_KEY}"},
+        params={"taskId": raw_task_id},
+        retry_reads=True,
+    )
+    data = response.get("data") if isinstance(response.get("data"), dict) else {}
+    status = str(data.get("status") or "")
+    failed_states = {
+        "CREATE_TASK_FAILED",
+        "GENERATE_AUDIO_FAILED",
+        "CALLBACK_EXCEPTION",
+        "SENSITIVE_WORD_ERROR",
+        "FAILED",
+        "ERROR",
+    }
+    if status == "SUCCESS":
+        internal_status = "success"
+    elif status in failed_states:
+        internal_status = "failed"
+    else:
         internal_status = "processing"
-        if status == "SUCCESS":
-            internal_status = "success"
-        elif status in failed_states:
-            internal_status = "failed"
-
-        return {
-            "status": internal_status,
-            "output_url": result_url,
-            "provider_status": status,
-            "raw_response": data,
-            "error_message": None if internal_status != "failed" else _extract_provider_error_message(
-                data,
-                f"Suno returned status {status}",
-            ),
-        }
+    return _build_status_result(
+        status=internal_status,
+        output_url=_extract_result_url(data),
+        provider_status=status,
+        raw_response=data,
+        error_message=None if internal_status != "failed" else _extract_provider_error_message(
+            data,
+            f"Suno returned status {status}",
+        ),
+    )

@@ -1,9 +1,11 @@
 import json
 
 from fastapi import APIRouter, Depends, BackgroundTasks, HTTPException, Query, Request
+from sqlalchemy import func, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 from core.database import get_db
 from core.config import settings
@@ -12,7 +14,15 @@ from models.user import User, Like
 from models.task import Task
 from models.admin import Feedback, ModelPricing
 from api.deps import get_current_active_user, get_current_verified_user
-from services.kie_ai import request_kie_generation, check_task_status, normalize_elevenlabs_inputs
+from services.kie_ai import (
+    GEMINI_TTS_MODELS,
+    KieApiError,
+    check_task_status,
+    normalize_elevenlabs_inputs,
+    normalize_gemini_tts_inputs,
+    normalize_kie_task_response,
+    request_kie_generation,
+)
 from api.schemas import GenerateRequest, FeedbackSchema
 from core.rate_limit import limiter
 from services.admin_logs import log_admin_event, log_admin_exception
@@ -25,9 +35,34 @@ def require_generation_enabled():
         raise HTTPException(status_code=503, detail="AI generation is disabled until provider access is configured")
 
 
-router = APIRouter(dependencies=[Depends(require_generation_enabled)])
+def validate_generation_input_payload(inputs: dict[str, Any]) -> None:
+    """Reject oversized or structurally unsafe input before charging credits."""
+    try:
+        serialized_size = len(json.dumps(inputs, ensure_ascii=False, default=str).encode("utf-8"))
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail="Generation inputs must be valid JSON") from exc
+    if serialized_size > 5 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Generation inputs are too large")
+
+    for key in ("prompt", "text", "character_prompt", "safety_instruction", "negative_prompt"):
+        value = inputs.get(key)
+        if isinstance(value, str) and len(value) > 20_000:
+            raise HTTPException(status_code=400, detail=f"{key} is too long")
+
+    for key in ("dialogue", "multi_prompt"):
+        value = inputs.get(key)
+        if isinstance(value, list) and len(value) > 100:
+            raise HTTPException(status_code=400, detail=f"{key} contains too many items")
+
+
+# Provider access is required only when starting a new generation. History,
+# status polling, callbacks and feedback must remain available when the
+# provider is temporarily disabled or not configured.
+router = APIRouter()
 
 NANOBANANA_MODEL = "nano-banana-2"
+NANOBANANA_21_MODEL = "nano-banana-2-1"
+NANOBANANA_LITE_MODEL = "nano-banana-2-lite"
 NANOBANANA_PRO_MODEL = "nano-banana-pro"
 GOOGLE_NANO_BANANA_MODEL = "google/nano-banana"
 GOOGLE_NANO_BANANA_EDIT_MODEL = "google/nano-banana-edit"
@@ -39,6 +74,10 @@ HAILUO_02_IMAGE_PRO_MODEL = "hailuo/02-image-to-video-pro"
 HAILUO_02_TEXT_STANDARD_MODEL = "hailuo/02-text-to-video-standard"
 HAILUO_02_IMAGE_STANDARD_MODEL = "hailuo/02-image-to-video-standard"
 BYTEDANCE_SEEDANCE_MODEL = "bytedance/seedance-1-5-pro"
+BYTEDANCE_SEEDANCE_20_MODEL = "bytedance/seedance-2"
+BYTEDANCE_SEEDANCE_20_FAST_MODEL = "bytedance/seedance-2-fast"
+BYTEDANCE_SEEDANCE_20_MINI_MODEL = "bytedance/seedance-2-mini"
+BYTEDANCE_SEEDANCE_25_MODEL = "bytedance/seedance-2-5"
 BYTEDANCE_V1_PRO_FAST_IMAGE_MODEL = "bytedance/v1-pro-fast-image-to-video"
 BYTEDANCE_V1_PRO_IMAGE_MODEL = "bytedance/v1-pro-image-to-video"
 BYTEDANCE_V1_PRO_TEXT_MODEL = "bytedance/v1-pro-text-to-video"
@@ -54,6 +93,12 @@ WAN_22_ANIMATE_MOVE_MODEL = "wan/2-2-animate-move"
 WAN_22_ANIMATE_REPLACE_MODEL = "wan/2-2-animate-replace"
 WAN_26_FLASH_IMAGE_MODEL = "wan/2-6-flash-image-to-video"
 WAN_26_FLASH_VIDEO_MODEL = "wan/2-6-flash-video-to-video"
+WAN_27_TEXT_MODEL = "wan/2-7-text-to-video"
+WAN_27_IMAGE_MODEL = "wan/2-7-image-to-video"
+WAN_27_VIDEO_EDIT_MODEL = "wan/2-7-videoedit"
+WAN_27_REFERENCE_MODEL = "wan/2-7-r2v"
+WAN_30_MODEL = "wan/3-0-video"
+WAN_30_PRIME_MODEL = "wan/3-0-video-prime"
 RUNWAY_GENERATE_MODEL = "runway/generate"
 RUNWAY_EXTEND_MODEL = "runway/extend"
 RUNWAY_ALEPH_GENERATE_MODEL = "runway/aleph-generate"
@@ -64,6 +109,8 @@ KLING_V25_TURBO_TEXT_MODEL = "kling/v2-5-turbo-text-to-video-pro"
 KLING_AI_AVATAR_MODELS = {"kling/ai-avatar-standard", "kling/ai-avatar-pro"}
 KLING_3_MOTION_MODEL = "kling-3/motion-control"
 KLING_30_VIDEO_MODEL = "kling-3.0/video"
+KLING_40_REFERENCE_MODEL = "kling-4.0/reference-to-video"
+KLING_40_KEYFRAME_MODEL = "kling-4.0/keyframe-to-video"
 VEO_31_TEXT_FAST_MODEL = "veo-3.1/text-fast"
 VEO_31_TEXT_QUALITY_MODEL = "veo-3.1/text-quality"
 VEO_31_IMAGE_FAST_MODEL = "veo-3.1/image-fast"
@@ -71,6 +118,10 @@ VEO_31_IMAGE_QUALITY_MODEL = "veo-3.1/image-quality"
 VEO_31_REFERENCE_FAST_MODEL = "veo-3.1/reference-fast"
 VEO_31_EXTEND_FAST_MODEL = "veo-3.1/extend-fast"
 VEO_31_EXTEND_QUALITY_MODEL = "veo-3.1/extend-quality"
+VEO_31_UNIFIED_MODEL = "veo-3-1"
+GROK_IMAGINE_VIDEO_15_MODEL = "grok-imagine-video-1-5-preview"
+PIXVERSE_V6_MAX_TEXT_MODEL = "pixverse-v6-max/text-to-video"
+PIXVERSE_V6_MAX_IMAGE_MODEL = "pixverse-v6-max/image-to-video"
 SORA_2_TEXT_MODEL = "sora-2-text-to-video"
 SORA_2_IMAGE_MODEL = "sora-2-image-to-video"
 SORA_2_PRO_TEXT_MODEL = "sora-2-pro-text-to-video"
@@ -97,6 +148,8 @@ VIDEO_SPECIAL_MODELS = (
         KLING_26_TEXT_MODEL,
         KLING_V25_TURBO_TEXT_MODEL,
         KLING_30_VIDEO_MODEL,
+        KLING_40_REFERENCE_MODEL,
+        KLING_40_KEYFRAME_MODEL,
         VEO_31_TEXT_FAST_MODEL,
         VEO_31_TEXT_QUALITY_MODEL,
         VEO_31_IMAGE_FAST_MODEL,
@@ -104,7 +157,15 @@ VIDEO_SPECIAL_MODELS = (
         VEO_31_REFERENCE_FAST_MODEL,
         VEO_31_EXTEND_FAST_MODEL,
         VEO_31_EXTEND_QUALITY_MODEL,
+        VEO_31_UNIFIED_MODEL,
+        GROK_IMAGINE_VIDEO_15_MODEL,
+        PIXVERSE_V6_MAX_TEXT_MODEL,
+        PIXVERSE_V6_MAX_IMAGE_MODEL,
         BYTEDANCE_SEEDANCE_MODEL,
+        BYTEDANCE_SEEDANCE_20_MODEL,
+        BYTEDANCE_SEEDANCE_20_FAST_MODEL,
+        BYTEDANCE_SEEDANCE_20_MINI_MODEL,
+        BYTEDANCE_SEEDANCE_25_MODEL,
         BYTEDANCE_V1_PRO_FAST_IMAGE_MODEL,
         BYTEDANCE_V1_PRO_IMAGE_MODEL,
         BYTEDANCE_V1_PRO_TEXT_MODEL,
@@ -125,6 +186,12 @@ VIDEO_SPECIAL_MODELS = (
         WAN_22_ANIMATE_REPLACE_MODEL,
         WAN_26_FLASH_IMAGE_MODEL,
         WAN_26_FLASH_VIDEO_MODEL,
+        WAN_27_TEXT_MODEL,
+        WAN_27_IMAGE_MODEL,
+        WAN_27_VIDEO_EDIT_MODEL,
+        WAN_27_REFERENCE_MODEL,
+        WAN_30_MODEL,
+        WAN_30_PRIME_MODEL,
         RUNWAY_GENERATE_MODEL,
         RUNWAY_EXTEND_MODEL,
         RUNWAY_ALEPH_GENERATE_MODEL,
@@ -266,6 +333,254 @@ def _normalize_video_inputs(mapped_model: str, mapped_inputs: dict[str, Any], ge
         if not prompt_value:
             raise HTTPException(status_code=400, detail="Prompt is required for this video model")
         return prompt_value
+
+    if mapped_model == VEO_31_UNIFIED_MODEL:
+        mapped_inputs["prompt"] = require_prompt()
+        aspect_ratio = str(mapped_inputs.get("aspect_ratio") or "16:9").strip()
+        mapped_inputs["aspect_ratio"] = aspect_ratio if aspect_ratio in {"16:9", "9:16", "auto"} else "16:9"
+        resolution = str(mapped_inputs.get("resolution") or gen_request.resolution or "720p").strip().lower()
+        mapped_inputs["resolution"] = resolution if resolution in {"720p", "1080p", "4k"} else "720p"
+        duration = _coerce_int(mapped_inputs.get("duration"), gen_request.duration or 8) or 8
+        mapped_inputs["duration"] = duration if duration in {4, 6, 8} else 8
+        image_urls = _unique_urls(
+            mapped_inputs.get("image_urls"),
+            mapped_inputs.get("image_url"),
+            mapped_inputs.get("image"),
+            mapped_inputs.get("input_urls"),
+        )
+        if image_urls:
+            mapped_inputs["image_urls"] = image_urls[:2]
+            mapped_inputs["generation_type"] = "FIRST_AND_LAST_FRAMES_2_VIDEO"
+        else:
+            mapped_inputs.pop("image_urls", None)
+            mapped_inputs["generation_type"] = "TEXT_2_VIDEO"
+        mapped_inputs.pop("image", None)
+        mapped_inputs.pop("image_url", None)
+        mapped_inputs.pop("input_urls", None)
+        return mapped_inputs
+
+    if mapped_model in {
+        BYTEDANCE_SEEDANCE_20_MODEL,
+        BYTEDANCE_SEEDANCE_20_FAST_MODEL,
+        BYTEDANCE_SEEDANCE_20_MINI_MODEL,
+        BYTEDANCE_SEEDANCE_25_MODEL,
+    }:
+        mapped_inputs["prompt"] = require_prompt()
+        resolution = str(mapped_inputs.get("resolution") or gen_request.resolution or "720p").strip().lower()
+        if mapped_model == BYTEDANCE_SEEDANCE_25_MODEL:
+            allowed_resolutions = {"480p", "720p", "1080p"}
+        elif mapped_model == BYTEDANCE_SEEDANCE_20_MODEL:
+            allowed_resolutions = {"480p", "720p", "1080p", "4k"}
+        else:
+            allowed_resolutions = {"480p", "720p"}
+        mapped_inputs["resolution"] = resolution if resolution in allowed_resolutions else "720p"
+        aspect_ratio = str(mapped_inputs.get("aspect_ratio") or gen_request.resolution or "16:9").strip()
+        mapped_inputs["aspect_ratio"] = aspect_ratio if aspect_ratio in {"16:9", "4:3", "1:1", "3:4", "9:16", "21:9", "adaptive"} else "16:9"
+        duration = _coerce_int(mapped_inputs.get("duration"), gen_request.duration or 5) or 5
+        mapped_inputs["duration"] = min(max(duration, 4), 30 if mapped_model == BYTEDANCE_SEEDANCE_25_MODEL else 15)
+        mapped_inputs["generate_audio"] = _coerce_bool(mapped_inputs.get("generate_audio"), True)
+
+        first_frame = (_unique_urls(mapped_inputs.get("first_frame_url")) or [None])[0]
+        last_frame = (_unique_urls(mapped_inputs.get("last_frame_url")) or [None])[0]
+        reference_keys = ("reference_image_urls", "reference_video_urls", "reference_audio_urls")
+        if last_frame and not first_frame:
+            raise HTTPException(status_code=400, detail="Last frame requires a first frame for Seedance video")
+        if first_frame:
+            mapped_inputs["first_frame_url"] = first_frame
+            if last_frame:
+                mapped_inputs["last_frame_url"] = last_frame
+            for key in reference_keys:
+                mapped_inputs.pop(key, None)
+        else:
+            mapped_inputs.pop("first_frame_url", None)
+            mapped_inputs.pop("last_frame_url", None)
+            for key, limit in (("reference_image_urls", 9 if mapped_model != BYTEDANCE_SEEDANCE_25_MODEL else 30), ("reference_video_urls", 3 if mapped_model != BYTEDANCE_SEEDANCE_25_MODEL else 10), ("reference_audio_urls", 3 if mapped_model != BYTEDANCE_SEEDANCE_25_MODEL else 10)):
+                values = _unique_urls(mapped_inputs.get(key))
+                if values:
+                    mapped_inputs[key] = values[:limit]
+                else:
+                    mapped_inputs.pop(key, None)
+        return mapped_inputs
+
+    if mapped_model in {KLING_40_REFERENCE_MODEL, KLING_40_KEYFRAME_MODEL}:
+        mapped_inputs["prompt"] = require_prompt()
+        resolution = str(mapped_inputs.get("resolution") or gen_request.resolution or "1080p").strip().lower()
+        mapped_inputs["resolution"] = resolution if resolution in {"720p", "1080p"} else "1080p"
+        duration = _coerce_int(mapped_inputs.get("duration"), gen_request.duration or 10) or 10
+        mapped_inputs["duration"] = min(max(duration, 3), 30)
+        if mapped_model == KLING_40_REFERENCE_MODEL:
+            image_urls = _unique_urls(mapped_inputs.get("image_urls"))
+            video_urls = _unique_urls(mapped_inputs.get("video_urls"))
+            if image_urls:
+                mapped_inputs["image_urls"] = image_urls[:10]
+            else:
+                mapped_inputs.pop("image_urls", None)
+            if video_urls:
+                mapped_inputs["video_urls"] = video_urls[:5]
+            else:
+                mapped_inputs.pop("video_urls", None)
+            elements = mapped_inputs.get("kling_elements")
+            if isinstance(elements, list):
+                normalized_elements = []
+                for item in elements[:7]:
+                    if not isinstance(item, dict):
+                        continue
+                    name = str(item.get("name") or "").strip()
+                    description = str(item.get("description") or "").strip()
+                    image_element_urls = _unique_urls(item.get("image_urls"), item.get("element_input_urls"))
+                    video_element_urls = _unique_urls(item.get("video_urls"), item.get("element_input_video_urls"))
+                    if name and (image_element_urls or video_element_urls):
+                        element = {"name": name, "tag": "character", "description": description}
+                        if image_element_urls:
+                            element["image_urls"] = image_element_urls[:4]
+                        if video_element_urls:
+                            element["video_urls"] = video_element_urls[:1]
+                        normalized_elements.append(element)
+                if normalized_elements:
+                    mapped_inputs["elements"] = normalized_elements
+            mapped_inputs.pop("kling_elements", None)
+            aspect_ratio = str(mapped_inputs.get("aspect_ratio") or "auto").strip()
+            mapped_inputs["aspect_ratio"] = aspect_ratio if aspect_ratio in {"auto", "16:9", "9:16", "1:1", "21:9"} else "auto"
+        else:
+            first_frame = (_unique_urls(mapped_inputs.get("first_frame_url")) or [None])[0]
+            last_frame = (_unique_urls(mapped_inputs.get("last_frame_url")) or [None])[0]
+            if not first_frame:
+                raise HTTPException(status_code=400, detail="First frame is required for Kling 4.0 keyframe mode")
+            mapped_inputs["first_frame_url"] = first_frame
+            if last_frame:
+                mapped_inputs["last_frame_url"] = last_frame
+            keyframes = _unique_urls(mapped_inputs.get("keyframe_urls"))
+            if keyframes:
+                mapped_inputs["keyframe_urls"] = keyframes[:8]
+            else:
+                mapped_inputs.pop("keyframe_urls", None)
+            mapped_inputs.pop("aspect_ratio", None)
+        return mapped_inputs
+
+    if mapped_model == GROK_IMAGINE_VIDEO_15_MODEL:
+        mapped_inputs["prompt"] = require_prompt()
+        image_urls = _unique_urls(mapped_inputs.get("image_urls"), mapped_inputs.get("image_url"), mapped_inputs.get("image"))
+        if image_urls:
+            mapped_inputs["image_urls"] = image_urls[:7]
+        else:
+            mapped_inputs.pop("image_urls", None)
+        resolution = str(mapped_inputs.get("resolution") or gen_request.resolution or "720p").strip().lower()
+        mapped_inputs["resolution"] = resolution if resolution in {"480p", "720p", "1080p"} else "720p"
+        aspect_ratio = str(mapped_inputs.get("aspect_ratio") or "auto").strip()
+        if len(image_urls) == 1:
+            mapped_inputs.pop("aspect_ratio", None)
+        else:
+            mapped_inputs["aspect_ratio"] = aspect_ratio if aspect_ratio in {"auto", "1:1", "16:9", "9:16", "3:2", "2:3"} else "auto"
+        duration = _coerce_int(mapped_inputs.get("duration"), gen_request.duration or 8) or 8
+        mapped_inputs["duration"] = min(max(duration, 1), 15)
+        mapped_inputs.pop("generate_audio", None)
+        for key in ("image", "image_url"):
+            mapped_inputs.pop(key, None)
+        return mapped_inputs
+
+    if mapped_model in {PIXVERSE_V6_MAX_TEXT_MODEL, PIXVERSE_V6_MAX_IMAGE_MODEL}:
+        mapped_inputs["prompt"] = require_prompt()
+        quality = str(mapped_inputs.get("quality") or mapped_inputs.get("resolution") or gen_request.resolution or "720p").strip().lower()
+        mapped_inputs["quality"] = quality if quality in {"360p", "540p", "720p", "1080p"} else "720p"
+        mapped_inputs.pop("resolution", None)
+        duration = _coerce_int(mapped_inputs.get("duration"), gen_request.duration or 5) or 5
+        mapped_inputs["duration"] = duration if duration in {5, 8, 10, 15} else 5
+        mapped_inputs["generate_audio_switch"] = _coerce_bool(
+            mapped_inputs.get("generate_audio_switch", mapped_inputs.get("generate_audio")),
+            False,
+        )
+        mapped_inputs.pop("generate_audio", None)
+        mapped_inputs.pop("generate_multi_clip_switch", None)
+        seed = _coerce_int(mapped_inputs.get("seed"))
+        if seed is None:
+            mapped_inputs.pop("seed", None)
+        else:
+            mapped_inputs["seed"] = min(max(seed, 0), 2_147_483_647)
+        image_urls = _unique_urls(
+            mapped_inputs.get("image_urls"),
+            mapped_inputs.get("image_url"),
+            mapped_inputs.get("image"),
+            mapped_inputs.get("input_urls"),
+        )
+        if mapped_model == PIXVERSE_V6_MAX_IMAGE_MODEL:
+            if not image_urls:
+                raise HTTPException(status_code=400, detail="Reference image is required for PixVerse V6 Max image mode")
+            mapped_inputs["image_urls"] = image_urls[:1]
+            mapped_inputs.pop("aspect_ratio", None)
+        else:
+            mapped_inputs.pop("image_urls", None)
+            aspect_ratio = str(mapped_inputs.get("aspect_ratio") or "16:9").strip()
+            mapped_inputs["aspect_ratio"] = aspect_ratio if aspect_ratio in {"16:9", "9:16", "1:1", "4:3", "3:4", "21:9"} else "16:9"
+        for key in ("image_url", "image", "input_urls"):
+            mapped_inputs.pop(key, None)
+        return mapped_inputs
+
+    if mapped_model in {WAN_27_TEXT_MODEL, WAN_27_IMAGE_MODEL, WAN_27_VIDEO_EDIT_MODEL, WAN_27_REFERENCE_MODEL}:
+        mapped_inputs["prompt"] = require_prompt()
+        resolution = str(mapped_inputs.get("resolution") or gen_request.resolution or "1080p").strip().lower().replace(" ", "")
+        mapped_inputs["resolution"] = resolution if resolution in {"480p", "720p", "1080p"} else "1080p"
+        mapped_inputs["prompt_extend"] = _coerce_bool(mapped_inputs.get("enable_prompt_expansion"), True)
+        mapped_inputs.pop("enable_prompt_expansion", None)
+        duration = _coerce_int(mapped_inputs.get("duration"), gen_request.duration or 5)
+        if mapped_model == WAN_27_VIDEO_EDIT_MODEL and duration == 0:
+            raise HTTPException(status_code=400, detail="Wan 2.7 video edit requires an explicit output duration for safe billing")
+        mapped_inputs["duration"] = 5 if duration is None or duration < 0 else duration
+        if mapped_model == WAN_27_TEXT_MODEL:
+            ratio = str(mapped_inputs.get("aspect_ratio") or "16:9").strip()
+            mapped_inputs["ratio"] = ratio if ratio in {"16:9", "9:16", "1:1", "4:3", "3:4", "21:9", "adaptive"} else "16:9"
+            mapped_inputs.pop("aspect_ratio", None)
+        elif mapped_model == WAN_27_IMAGE_MODEL:
+            first_frame = (_unique_urls(mapped_inputs.get("first_frame_url")) or [None])[0]
+            first_clip = (_unique_urls(mapped_inputs.get("first_clip_url")) or [None])[0]
+            if not first_frame and not first_clip:
+                raise HTTPException(status_code=400, detail="First frame or source clip is required for Wan 2.7 image mode")
+            if first_frame:
+                mapped_inputs["first_frame_url"] = first_frame
+            if first_clip:
+                mapped_inputs["first_clip_url"] = first_clip
+            last_frame = (_unique_urls(mapped_inputs.get("last_frame_url")) or [None])[0]
+            if last_frame:
+                mapped_inputs["last_frame_url"] = last_frame
+        elif mapped_model == WAN_27_VIDEO_EDIT_MODEL:
+            video_url = (_unique_urls(mapped_inputs.get("video_url"), mapped_inputs.get("video"), mapped_inputs.get("video_urls")) or [None])[0]
+            if not video_url:
+                raise HTTPException(status_code=400, detail="Source video is required for Wan 2.7 video edit")
+            mapped_inputs["video_url"] = video_url
+            reference_image = (_unique_urls(mapped_inputs.get("reference_image"), mapped_inputs.get("image_url"), mapped_inputs.get("image"), mapped_inputs.get("image_urls")) or [None])[0]
+            if reference_image:
+                mapped_inputs["reference_image"] = reference_image
+            for key in ("video", "video_urls", "image", "image_url", "image_urls"):
+                mapped_inputs.pop(key, None)
+        else:
+            reference_images = _unique_urls(mapped_inputs.get("reference_image"), mapped_inputs.get("reference_image_urls"), mapped_inputs.get("image_urls"))
+            reference_videos = _unique_urls(mapped_inputs.get("reference_video"), mapped_inputs.get("reference_video_urls"), mapped_inputs.get("video_urls"))
+            if not reference_images and not reference_videos:
+                raise HTTPException(status_code=400, detail="Reference image or video is required for Wan 2.7 reference mode")
+            if reference_images:
+                mapped_inputs["reference_image"] = reference_images[:9]
+            if reference_videos:
+                mapped_inputs["reference_video"] = reference_videos[:3]
+            first_frame = (_unique_urls(mapped_inputs.get("first_frame")) or [None])[0]
+            if first_frame:
+                mapped_inputs["first_frame"] = first_frame
+            else:
+                mapped_inputs.pop("first_frame", None)
+            reference_voice = (_unique_urls(mapped_inputs.get("reference_voice")) or [None])[0]
+            if reference_voice:
+                mapped_inputs["reference_voice"] = reference_voice
+            else:
+                mapped_inputs.pop("reference_voice", None)
+            mapped_inputs.pop("reference_image_urls", None)
+            mapped_inputs.pop("reference_video_urls", None)
+            mapped_inputs.pop("image_urls", None)
+            mapped_inputs.pop("video_urls", None)
+        return mapped_inputs
+
+    if mapped_model in {WAN_30_MODEL, WAN_30_PRIME_MODEL}:
+        mapped_inputs["prompt"] = require_prompt()
+        mapped_inputs["audio"] = _coerce_bool(mapped_inputs.get("generate_audio"), True)
+        mapped_inputs.pop("generate_audio", None)
+        return mapped_inputs
 
     if mapped_model in {HAILUO_IMAGE_TO_VIDEO_MODEL, HAILUO_IMAGE_TO_VIDEO_STANDARD_MODEL}:
         reference_image = (
@@ -820,26 +1135,29 @@ def _normalize_video_inputs(mapped_model: str, mapped_inputs: dict[str, Any], ge
         else:
             mapped_inputs["aspect_ratio"] = aspect_ratio if aspect_ratio in STANDARD_VIDEO_ASPECT_RATIOS else "16:9"
         mode = str(mapped_inputs.get("mode") or "pro").strip().lower()
-        mapped_inputs["mode"] = mode if mode in {"std", "pro"} else "pro"
+        mapped_inputs["mode"] = "4K" if mode == "4k" else (mode if mode in {"std", "pro"} else "pro")
         kling_elements = mapped_inputs.get("kling_elements")
         if isinstance(kling_elements, list):
             normalized_elements = []
-            for item in kling_elements[:10]:
+            for item in kling_elements[:3]:
                 if not isinstance(item, dict):
                     continue
                 name = str(item.get("name") or "").strip()
                 description = str(item.get("description") or "").strip()
                 element_urls = _coerce_str_list(item.get("element_input_urls"))
                 element_video_urls = _coerce_str_list(item.get("element_input_video_urls"))
-                if name and description and (element_urls or element_video_urls):
+                element_audio_urls = _coerce_str_list(item.get("element_input_audio_urls"))
+                if name and description and (len(element_urls) >= 2 or element_video_urls or element_audio_urls):
                     normalized_item = {
                         "name": name,
                         "description": description,
                     }
-                    if element_urls:
-                        normalized_item["element_input_urls"] = element_urls[:2]
+                    if len(element_urls) >= 2:
+                        normalized_item["element_input_urls"] = element_urls[:4]
                     if element_video_urls:
-                        normalized_item["element_input_video_urls"] = element_video_urls[:2]
+                        normalized_item["element_input_video_urls"] = element_video_urls[:1]
+                    if element_audio_urls:
+                        normalized_item["element_input_audio_urls"] = element_audio_urls[:1]
                     normalized_elements.append(normalized_item)
             if normalized_elements:
                 mapped_inputs["kling_elements"] = normalized_elements
@@ -1099,7 +1417,7 @@ def _extract_pricing_context(
         if frame_count is None:
             frame_count = _coerce_int(mapped_inputs.get("n_frames"))
         return {
-            "resolution": str(mapped_inputs.get("resolution") or gen_request.resolution or "").strip() or None,
+            "resolution": str(mapped_inputs.get("resolution") or mapped_inputs.get("quality") or gen_request.resolution or "").strip() or None,
             "duration": _coerce_int(mapped_inputs.get("duration"), gen_request.duration),
             "aspect_ratio": aspect_ratio,
             "output_format": None,
@@ -1109,7 +1427,13 @@ def _extract_pricing_context(
             "generation_mode": generation_mode,
             "acceleration": str(mapped_inputs.get("acceleration") or "").strip() or None,
             "frame_count": frame_count,
-            "sound_enabled": mapped_inputs.get("sound") if isinstance(mapped_inputs.get("sound"), bool) else None,
+            "sound_enabled": (
+                mapped_inputs.get("sound")
+                if isinstance(mapped_inputs.get("sound"), bool)
+                else mapped_inputs.get("generate_audio_switch")
+                if isinstance(mapped_inputs.get("generate_audio_switch"), bool)
+                else None
+            ),
             "remove_watermark": mapped_inputs.get("remove_watermark") if isinstance(mapped_inputs.get("remove_watermark"), bool) else None,
         }
 
@@ -1243,6 +1567,7 @@ async def start_generation_task(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_verified_user)
 ):
+    require_generation_enabled()
     # Map simple model names to KIE model names
     model_mapping = {
         "face_swap": "flux-2/pro-image-to-image",
@@ -1257,6 +1582,7 @@ async def start_generation_task(
 
     mapped_model = model_mapping.get(gen_request.model, gen_request.model) if gen_request.model else ""
     mapped_inputs = gen_request.inputs.copy() if gen_request.inputs else {}
+    validate_generation_input_payload(mapped_inputs)
 
     prompt_candidates: list[str] = []
     for value in (
@@ -1291,10 +1617,33 @@ async def start_generation_task(
         model_name_lower = mapped_model.lower()
         if any(x in model_name_lower for x in ["video", "kling", "hailuo", "wan", "runway", "luma", "veo", "sora"]):
             category = "video"
-        elif any(x in model_name_lower for x in ["audio", "music", "elevenlabs", "suno"]):
+        elif any(x in model_name_lower for x in ["audio", "music", "elevenlabs", "suno", "tts"]) or model_name_lower in GEMINI_TTS_MODELS:
             category = "audio"
         else:
             category = "image"
+
+    idempotency_key = (
+        request.headers.get("Idempotency-Key")
+        or request.headers.get("X-Idempotency-Key")
+        or ""
+    ).strip()
+    if len(idempotency_key) > 128:
+        raise HTTPException(status_code=400, detail="Idempotency-Key is too long")
+    if idempotency_key:
+        existing_task = (
+            db.query(Task)
+            .filter(
+                Task.user_id == current_user.id,
+                Task.client_request_id == idempotency_key,
+            )
+            .first()
+        )
+        if existing_task:
+            return {
+                "task_id": existing_task.id,
+                "status": existing_task.status,
+                "message": "Generation request already accepted",
+            }
 
     # Define model-specific parameter mapping
     # 1. Image Generation Models (Flux, Google, Ideogram, etc.)
@@ -1312,7 +1661,7 @@ async def start_generation_task(
         "z-image"
     ]
 
-    if mapped_model in image_gen_models or mapped_model in GOOGLE_IMAGEN_MODELS or mapped_model in {NANOBANANA_MODEL, NANOBANANA_PRO_MODEL, GOOGLE_NANO_BANANA_MODEL, GOOGLE_NANO_BANANA_EDIT_MODEL} or category == "image" or category == "images":
+    if mapped_model in image_gen_models or mapped_model in GOOGLE_IMAGEN_MODELS or mapped_model in {NANOBANANA_MODEL, NANOBANANA_21_MODEL, NANOBANANA_LITE_MODEL, NANOBANANA_PRO_MODEL, GOOGLE_NANO_BANANA_MODEL, GOOGLE_NANO_BANANA_EDIT_MODEL} or category == "image" or category == "images":
         # Ensure prompt
         if "prompt" not in mapped_inputs or not mapped_inputs["prompt"]:
             # Load dynamic prompts from DB SiteSettings
@@ -1334,7 +1683,7 @@ async def start_generation_task(
             else:
                 mapped_inputs["prompt"] = f"A professional quality AI processing of the input for {gen_request.model} effect"
 
-        if mapped_model in {NANOBANANA_MODEL, NANOBANANA_PRO_MODEL}:
+        if mapped_model in {NANOBANANA_MODEL, NANOBANANA_21_MODEL, NANOBANANA_PRO_MODEL}:
             input_resolution = str(gen_request.resolution) if gen_request.resolution else ""
             aspect_ratio = str(mapped_inputs.get("aspect_ratio") or "").strip()
             if aspect_ratio not in NANOBANANA_ASPECT_RATIOS:
@@ -1363,6 +1712,24 @@ async def start_generation_task(
                 mapped_inputs.pop("image_input", None)
 
             for key in ("image", "image_url", "input_urls", "image_urls", "reference_image_urls"):
+                mapped_inputs.pop(key, None)
+        elif mapped_model == NANOBANANA_LITE_MODEL:
+            image_urls = _coerce_str_list(mapped_inputs.get("image_urls"))
+            for key in ("image", "image_url", "input_urls", "image_input", "reference_image_urls"):
+                image_urls.extend(_coerce_str_list(mapped_inputs.get(key)))
+            unique_image_urls = list(dict.fromkeys(image_urls))
+            if unique_image_urls:
+                mapped_inputs["image_urls"] = unique_image_urls[:10]
+            else:
+                mapped_inputs.pop("image_urls", None)
+
+            aspect_ratio = str(mapped_inputs.get("aspect_ratio") or gen_request.resolution or "").strip()
+            mapped_inputs["aspect_ratio"] = aspect_ratio if aspect_ratio in NANOBANANA_ASPECT_RATIOS else "auto"
+            # Nano Banana 2 Lite always returns JPEG and does not accept the
+            # resolution/output_format fields supported by Nano Banana 2.1.
+            for key in ("resolution", "output_format", "google_search"):
+                mapped_inputs.pop(key, None)
+            for key in ("image", "image_url", "input_urls", "image_input", "reference_image_urls"):
                 mapped_inputs.pop(key, None)
         elif mapped_model == GOOGLE_NANO_BANANA_MODEL:
             image_size = str(mapped_inputs.get("image_size") or mapped_inputs.get("aspect_ratio") or gen_request.resolution or "").strip()
@@ -1494,6 +1861,11 @@ async def start_generation_task(
             if not str(mapped_inputs.get("text", "")).strip():
                 raise HTTPException(status_code=400, detail="Text is required for voice generation")
 
+    if mapped_model in GEMINI_TTS_MODELS:
+        mapped_inputs = normalize_gemini_tts_inputs(mapped_model, mapped_inputs)
+        if not mapped_inputs.get("dialogue_turns"):
+            raise HTTPException(status_code=400, detail="At least one non-empty dialogue line is required")
+
     # 3. Simple Tools (Upscale, Colorize, etc.)
     if "topaz/image-upscale" in mapped_model or "upscale" in gen_request.model:
         # Topaz expects upscale_factor instead of scale, and it must be a string '1', '2', '4', '8'
@@ -1529,7 +1901,7 @@ async def start_generation_task(
 
     # 4. Map Image Input Keys Based on Targeted Model
     # Extracts image, image_url, input_urls, image_urls, etc. into a uniform string and sets the expected API key
-    if mapped_model not in {NANOBANANA_MODEL, NANOBANANA_PRO_MODEL, GOOGLE_NANO_BANANA_MODEL, GOOGLE_NANO_BANANA_EDIT_MODEL} and mapped_model not in GOOGLE_IMAGEN_MODELS and mapped_model not in VIDEO_SPECIAL_MODELS:
+    if mapped_model not in {NANOBANANA_MODEL, NANOBANANA_21_MODEL, NANOBANANA_LITE_MODEL, NANOBANANA_PRO_MODEL, GOOGLE_NANO_BANANA_MODEL, GOOGLE_NANO_BANANA_EDIT_MODEL} and mapped_model not in GOOGLE_IMAGEN_MODELS and mapped_model not in VIDEO_SPECIAL_MODELS:
         input_image = mapped_inputs.pop("image", None) or mapped_inputs.pop("image_url", None) or mapped_inputs.pop("video", None) or mapped_inputs.pop("audio", None)
 
         if not input_image:
@@ -1552,7 +1924,7 @@ async def start_generation_task(
 
     pricing_context = _extract_pricing_context(category, mapped_model, mapped_inputs, gen_request)
     pricing = _select_best_pricing(db, category, mapped_model, pricing_context)
-    if mapped_model in {
+    pricing_required_models = {
         VEO_31_TEXT_FAST_MODEL,
         VEO_31_TEXT_QUALITY_MODEL,
         VEO_31_IMAGE_FAST_MODEL,
@@ -1560,25 +1932,59 @@ async def start_generation_task(
         VEO_31_REFERENCE_FAST_MODEL,
         VEO_31_EXTEND_FAST_MODEL,
         VEO_31_EXTEND_QUALITY_MODEL,
-    } and pricing is None:
-        raise HTTPException(status_code=400, detail="VEO pricing is not configured yet")
+        VEO_31_UNIFIED_MODEL,
+        GROK_IMAGINE_VIDEO_15_MODEL,
+        PIXVERSE_V6_MAX_TEXT_MODEL,
+        PIXVERSE_V6_MAX_IMAGE_MODEL,
+        BYTEDANCE_SEEDANCE_20_MODEL,
+        BYTEDANCE_SEEDANCE_20_FAST_MODEL,
+        BYTEDANCE_SEEDANCE_20_MINI_MODEL,
+        BYTEDANCE_SEEDANCE_25_MODEL,
+        KLING_40_REFERENCE_MODEL,
+        KLING_40_KEYFRAME_MODEL,
+        WAN_27_TEXT_MODEL,
+        WAN_27_IMAGE_MODEL,
+        WAN_27_VIDEO_EDIT_MODEL,
+        WAN_27_REFERENCE_MODEL,
+        WAN_30_MODEL,
+        WAN_30_PRIME_MODEL,
+        "suno/V6",
+        "suno/V6_MINI",
+        "suno/V6_WILD",
+        *GEMINI_TTS_MODELS,
+    }
+    if mapped_model in pricing_required_models and pricing is None:
+        raise HTTPException(status_code=400, detail="Pricing is not configured for this model yet")
     cost = pricing.cost if pricing else 1.5 # Стоимость генерации (по умолчанию 1.5)
 
-    if current_user.balance < cost:
+    available_balance = float(current_user.balance or 0)
+    if available_balance < cost:
         log_admin_event(
             level="WARNING",
             scope="generation",
             event="insufficient_credits",
             message=f"Generation rejected for user #{current_user.id}: not enough credits",
             user_id=current_user.id,
-            details={"model": mapped_model, "cost": cost, "balance": current_user.balance},
+            details={"model": mapped_model, "cost": cost, "balance": available_balance},
             path=str(request.url.path),
             method=request.method,
         )
         raise HTTPException(status_code=400, detail="Not enough credits")
 
-    # 2. Списываем кредиты и создаем Task в БД (со статусом pending)
-    current_user.balance -= cost
+    # 2. Atomically reserve credits. A Python-side read/decrement allows two
+    # concurrent requests to overspend the same balance.
+    debit_result = db.execute(
+        update(User)
+        .where(
+            User.id == current_user.id,
+            func.coalesce(User.balance, 0) >= cost,
+        )
+        .values(balance=func.coalesce(User.balance, 0) - cost)
+    )
+    if debit_result.rowcount != 1:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Not enough credits")
+    db.refresh(current_user)
 
     # Извлекаем URL если он есть, чтобы сохранить в input_url
     input_url = ""
@@ -1623,6 +2029,7 @@ async def start_generation_task(
     new_task = Task(
         user_id=current_user.id,
         task_id_vendor=None, # Будет обновлено Celery worker'ом
+        client_request_id=idempotency_key or None,
         tool_type="general",
         category=category,
         model=mapped_model,
@@ -1637,10 +2044,31 @@ async def start_generation_task(
         provider_status="queued_locally",
     )
     db.add(new_task)
-    db.commit()
-    db.refresh(new_task)
+    db.flush()
     create_generation_notification(db, task=new_task, kind="generation_queued", dedupe=True)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        # Two concurrent requests with the same key must not both reserve
+        # credits. The unique constraint rolls back the debit and the losing
+        # request returns the task created by the winner.
+        db.rollback()
+        if idempotency_key:
+            existing_task = (
+                db.query(Task)
+                .filter(
+                    Task.user_id == current_user.id,
+                    Task.client_request_id == idempotency_key,
+                )
+                .first()
+            )
+            if existing_task:
+                return {
+                    "task_id": existing_task.id,
+                    "status": existing_task.status,
+                    "message": "Generation request already accepted",
+                }
+        raise HTTPException(status_code=409, detail="Generation request could not be reserved safely") from exc
     log_admin_event(
         level="INFO",
         scope="generation",
@@ -1702,6 +2130,86 @@ async def start_generation_task(
     )
 
     return {"task_id": new_task.id, "status": new_task.status, "message": "Generation queued successfully"}
+
+
+@router.post("/kie/callback")
+async def kie_callback(request: Request, db: Session = Depends(get_db)):
+    """Handle generic KIE callbacks idempotently.
+
+    KIE may deliver a callback more than once and may return an application
+    error in an HTTP 200 response. Both cases are normalized before changing
+    the task or refunding credits.
+    """
+    webhook_token = request.query_params.get("token") or request.headers.get("x-webhook-token")
+    expected_token = settings.KIE_CALLBACK_TOKEN or settings.SUNO_CALLBACK_TOKEN
+    if not is_valid_shared_secret(webhook_token, expected_token):
+        raise HTTPException(status_code=403, detail="Invalid webhook token")
+
+    try:
+        body = await request.json()
+    except Exception:
+        return {"status": "ignored"}
+    if not isinstance(body, dict):
+        return {"status": "ignored"}
+
+    data = body.get("data") if isinstance(body.get("data"), dict) else {}
+    task_id_vendor = data.get("taskId") or body.get("taskId")
+    if not task_id_vendor:
+        return {"status": "no_task_id"}
+
+    task = db.query(Task).filter(Task.task_id_vendor == str(task_id_vendor)).first()
+    if not task:
+        return {"status": "ok"}
+    if task.status in {"success", "failed"}:
+        return {"status": "ok"}
+
+    if body.get("code") is not None and str(body.get("code")) != "200":
+        normalized = {
+            "status": "failed",
+            "output_url": None,
+            "provider_status": str(body.get("code")),
+            "raw_response": data,
+            "error_message": str(body.get("msg") or body.get("message") or "Provider callback reported failure"),
+        }
+    else:
+        try:
+            normalized = normalize_kie_task_response(body, strict=False)
+        except KieApiError as exc:
+            normalized = {
+                "status": "failed",
+                "output_url": None,
+                "provider_status": "invalid_callback",
+                "raw_response": data,
+                "error_message": str(exc),
+            }
+
+    if normalized["status"] == "success":
+        task.status = "success"
+        task.output_url = normalized.get("output_url")
+        task.provider_status = str(normalized.get("provider_status") or "success")
+        task.completed_at = datetime.now(timezone.utc)
+        task.error_message = None
+        task.error_details = None
+        create_generation_notification(db, task=task, kind="generation_completed", dedupe=True)
+    elif normalized["status"] == "failed":
+        task.status = "failed"
+        task.provider_status = str(normalized.get("provider_status") or "failed")
+        task.error_message = normalized.get("error_message") or "Provider reported failure"
+        task.error_details = str(normalized.get("raw_response") or "")[:10_000]
+        task.completed_at = datetime.now(timezone.utc)
+        refund_task_credits_once(
+            db,
+            task,
+            reason="provider_callback_failure",
+            error_message=task.error_message,
+            notify=True,
+        )
+    else:
+        task.status = "processing"
+        task.provider_status = str(normalized.get("provider_status") or "processing")
+
+    db.commit()
+    return {"status": "ok"}
 
 @router.post("/suno/callback")
 async def suno_callback(request: Request, db: Session = Depends(get_db)):
@@ -1767,8 +2275,34 @@ async def get_task_status(
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
+    # If the worker crashed before persisting a provider task id, never leave
+    # a reservation looking silently pending forever. The outcome is unknown,
+    # so keep credits reserved (no unsafe refund) and expose a support-ready
+    # status instead of retrying and risking a duplicate generation.
+    if task.status in {"pending", "processing"} and not task.task_id_vendor and task.created_at:
+        created_at = task.created_at
+        if created_at.tzinfo is None:
+            created_at = created_at.replace(tzinfo=timezone.utc)
+        if datetime.now(timezone.utc) - created_at > timedelta(minutes=15):
+            task.status = "submission_unknown"
+            task.provider_status = "worker_confirmation_timeout"
+            task.error_message = (
+                "The worker did not confirm whether the provider accepted the request. "
+                "Your credits remain reserved while this is verified."
+            )
+            task.completed_at = datetime.now(timezone.utc)
+            create_generation_notification(
+                db,
+                task=task,
+                kind="generation_failed",
+                error_message=task.error_message,
+                credits_refunded=False,
+                dedupe=True,
+            )
+            db.commit()
+
     # Если таска все еще обрабатывается, дёргаем KIE API
-    if task.status == "processing" and task.task_id_vendor:
+    if task.status in {"pending", "processing"} and task.task_id_vendor:
         try:
             vendor_status = await check_task_status(task.task_id_vendor)
             if vendor_status.get("status") == "success":
@@ -1821,7 +2355,54 @@ async def get_task_status(
                         "raw_response": vendor_status.get("raw_response"),
                     },
                 )
+            elif vendor_status.get("status") == "processing":
+                # Persist the latest provider state and clear a stale
+                # status-endpoint warning after the provider becomes reachable
+                # again. This also makes the response consistent across polls.
+                task.status = "processing"
+                task.provider_status = str(vendor_status.get("provider_status") or "processing")
+                if task.error_message == "The provider status is temporarily unavailable. Credits remain reserved while we verify the task.":
+                    task.error_message = None
+                    task.error_details = None
+                db.commit()
+        except KieApiError as exc:
+            # Keep the task in processing for transient provider/API errors;
+            # the next client poll or callback can still complete it. Credits
+            # are not refunded based on an unavailable status endpoint.
+            db.rollback()
+            fresh_task = db.query(Task).filter(Task.id == task_id, Task.user_id == current_user.id).first()
+            if fresh_task:
+                task = fresh_task
+            if fresh_task and fresh_task.status in {"pending", "processing"}:
+                fresh_task.provider_status = "provider_status_unavailable"
+                fresh_task.error_message = (
+                    "The provider status is temporarily unavailable. "
+                    "Credits remain reserved while we verify the task."
+                )
+                fresh_task.error_details = repr(exc)
+                db.commit()
+            log_admin_exception(
+                scope="generation",
+                event="status_poll_provider_error",
+                message=f"Provider status unavailable for task #{task.id}",
+                exc=exc,
+                task_id=task.id,
+                user_id=task.user_id,
+                details={"vendor_task_id": task.task_id_vendor, "code": exc.code},
+            )
         except Exception as exc:
+            db.rollback()
+            fresh_task = db.query(Task).filter(Task.id == task_id, Task.user_id == current_user.id).first()
+            if fresh_task:
+                task = fresh_task
+            if fresh_task and fresh_task.status in {"pending", "processing"}:
+                fresh_task.provider_status = "provider_status_unavailable"
+                fresh_task.error_message = (
+                    "The provider status is temporarily unavailable. "
+                    "Credits remain reserved while we verify the task."
+                )
+                fresh_task.error_details = repr(exc)
+                db.commit()
             log_admin_exception(
                 scope="generation",
                 event="status_poll_exception",
@@ -1831,13 +2412,14 @@ async def get_task_status(
                 user_id=task.user_id,
                 details={"vendor_task_id": task.task_id_vendor},
             )
-            pass # Игнорируем ошибки сети при проверке статуса, проверим в след раз
 
     return {
         "task_id": task.id,
         "status": task.status,
         "result_url": task.output_url,
         "error_message": task.error_message,
+        "provider_status": task.provider_status,
+        "credits_refunded": bool(task.credits_refunded_at),
     }
 
 @router.get("/my-creations")
@@ -1884,6 +2466,9 @@ def delete_task(task_id: int, db: Session = Depends(get_db), current_user: User 
     task = db.query(Task).filter(Task.id == task_id, Task.user_id == current_user.id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
+
+    if task.status in {"pending", "processing", "submission_unknown"}:
+        raise HTTPException(status_code=409, detail="Cannot delete a generation while it is still being processed")
 
     db.delete(task)
     db.commit()

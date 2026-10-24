@@ -103,7 +103,7 @@ export default function AudioShowcasePanel({
       promptPreview: t('premium_case_lyrics_prompt'),
       apply: () =>
         onApplyMusicPreset({
-          modelId: 'suno/V5',
+          modelId: 'suno/V6',
           title: t('premium_case_lyrics_seed'),
           prompt: t('premium_case_lyrics_prompt'),
           style: 'anthemic pop, emotional build, bright female topline',
@@ -121,7 +121,7 @@ export default function AudioShowcasePanel({
       promptPreview: t('premium_case_sfx_prompt'),
       apply: () =>
         onApplyMusicPreset({
-          modelId: 'suno/V4_5PLUS',
+          modelId: 'suno/V6_MINI',
           title: '',
           prompt: t('premium_case_sfx_prompt'),
           style: 'cinematic impacts, whooshes, metallic hits, tension risers',
@@ -154,7 +154,7 @@ export default function AudioShowcasePanel({
       promptPreview: t('premium_case_cover_prompt'),
       apply: () =>
         onApplyMusicPreset({
-          modelId: 'suno/V5',
+          modelId: 'suno/V6',
           title: t('premium_case_cover_seed'),
           prompt: t('premium_case_cover_prompt'),
           style: 'synthwave cover, glossy drums, nostalgic female tone',

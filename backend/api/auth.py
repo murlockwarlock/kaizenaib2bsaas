@@ -571,7 +571,7 @@ def claim_plan_invite(
         )
         db.add(grant)
 
-    current_user.balance = round_money((current_user.balance or 0.0) + float(plan.credits or 0))
+    current_user.balance = round_money(float(current_user.balance or 0) + float(plan.credits or 0))
 
     invite.status = "claimed"
     invite.used_at = _utcnow()

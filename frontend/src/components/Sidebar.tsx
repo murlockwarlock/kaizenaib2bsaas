@@ -34,7 +34,7 @@ const menuItems = [
     { key: 'explore', href: '/explore', icon: Compass },
     { key: 'ai_effects', href: '/catalog', icon: Layers3 },
     { key: 'video', href: '/video', icon: Video },
-    { key: 'audio', href: '/audio?model=suno%2FV5', icon: Music },
+    { key: 'audio', href: '/audio?model=suno%2FV6', icon: Music },
     { key: 'images', href: '/images', icon: Image },
     { key: 'pricing', href: '/pricing', icon: Coins },
 ];

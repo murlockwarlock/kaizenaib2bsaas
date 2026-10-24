@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, Text, Float, DateTime
+from sqlalchemy import Column, Integer, String, Boolean, Text, Numeric, DateTime
 from sqlalchemy.sql import func
 from core.database import Base
 
@@ -66,7 +66,7 @@ class ModelPricing(Base):
     frame_count = Column(Integer, nullable=True)
     sound_enabled = Column(Boolean, nullable=True)
     remove_watermark = Column(Boolean, nullable=True)
-    cost = Column(Float, default=1.0)
+    cost = Column(Numeric(12, 4), default=1, nullable=False)
     is_active = Column(Boolean, default=True)
 
 class FeaturedAudio(Base):
@@ -101,7 +101,7 @@ class PricingPlan(Base):
     features_ru = Column(Text, nullable=True)
     features_en = Column(Text, nullable=True)
     currency_symbol = Column(String, nullable=False, default="$")
-    price = Column(Float, nullable=False, default=0.0)
+    price = Column(Numeric(12, 2), nullable=False, default=0)
     credits = Column(Integer, nullable=False, default=0)
     is_recurring = Column(Boolean, default=False)
     recurring_days = Column(Integer, default=30)

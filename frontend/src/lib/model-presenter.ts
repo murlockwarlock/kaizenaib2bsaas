@@ -282,6 +282,34 @@ const MODEL_GUIDES: Record<string, LocalizedModelGuide> = {
       workflow: 'Сначала выберите формат кадра и разрешение, затем добавьте промпт, при необходимости референсы, формат файла и Google Search только когда нужен актуальный контекст.',
     },
   },
+  'nano-banana-2-1': {
+    en: {
+      title: 'Nano Banana 2.1',
+      summary: 'Current Nano Banana image model with flexible framing, high-resolution output and optional references.',
+      bestFor: 'New image generations, detailed prompts and controlled 1K/2K/4K exports.',
+      workflow: 'Choose the frame and resolution, then add a prompt and optional references before generating.',
+    },
+    ru: {
+      title: 'Nano Banana 2.1',
+      summary: 'Актуальная Nano Banana с гибким кадром, высоким разрешением и опциональными референсами.',
+      bestFor: 'Новые генерации, подробные промпты и управляемый экспорт в 1K/2K/4K.',
+      workflow: 'Выберите формат кадра и разрешение, затем добавьте промпт и при необходимости референсы.',
+    },
+  },
+  'nano-banana-2-lite': {
+    en: {
+      title: 'Nano Banana 2 Lite',
+      summary: 'Fast Nano Banana mode with optional multi-reference input and JPEG output.',
+      bestFor: 'Quick drafts, variations and reference-guided concepts.',
+      workflow: 'Use a concise prompt and add up to ten references when visual consistency matters.',
+    },
+    ru: {
+      title: 'Nano Banana 2 Lite',
+      summary: 'Быстрый режим Nano Banana с несколькими референсами и JPEG-результатом.',
+      bestFor: 'Черновики, варианты и концепты по референсам.',
+      workflow: 'Используйте короткий промпт и добавьте до десяти референсов, если важна визуальная связность.',
+    },
+  },
   'nano-banana-pro': {
     en: {
       title: 'Nano Banana Pro',
@@ -686,6 +714,90 @@ const MODEL_GUIDES: Record<string, LocalizedModelGuide> = {
       summary: 'Модель для мультиспикерных диалогов и сцен.',
       bestFor: 'Сцены с персонажами, подкасты, диалоги по сценарию.',
       workflow: 'Лучше разделять реплики по спикерам и явно писать эмоции/контекст.',
+    },
+  },
+  'google/gemini-3-8-flash-tts': {
+    en: {
+      title: 'Gemini 3.8 Flash TTS',
+      summary: 'Current Gemini dialogue TTS with expressive multi-speaker delivery.',
+      bestFor: 'Fast narration, character dialogue and voice experiments.',
+      workflow: 'Split the script into speaker lines and keep the direction concise.',
+    },
+    ru: {
+      title: 'Gemini 3.8 Flash TTS',
+      summary: 'Актуальная Gemini TTS-модель для выразительных диалогов с несколькими спикерами.',
+      bestFor: 'Быстрая озвучка, диалоги персонажей и голосовые эксперименты.',
+      workflow: 'Разделяйте сценарий на реплики спикеров и пишите короткие указания по подаче.',
+    },
+  },
+  'google/gemini-3-8-flash-lite-tts': {
+    en: {
+      title: 'Gemini 3.8 Flash Lite TTS',
+      summary: 'Lighter Gemini dialogue TTS path for quick, lower-latency drafts.',
+      bestFor: 'Fast previews, short scripts and cost-conscious voice workflows.',
+      workflow: 'Use short speaker turns when you need a quick draft.',
+    },
+    ru: {
+      title: 'Gemini 3.8 Flash Lite TTS',
+      summary: 'Более лёгкий путь Gemini TTS для быстрых черновиков с низкой задержкой.',
+      bestFor: 'Быстрые превью, короткие сценарии и экономичная озвучка.',
+      workflow: 'Используйте короткие реплики, когда нужен быстрый черновой результат.',
+    },
+  },
+  'google/gemini-3-1-flash-tts': {
+    en: {
+      title: 'Gemini 3.1 Flash TTS',
+      summary: 'Gemini dialogue TTS model for structured, expressive conversations.',
+      bestFor: 'Scripted conversations, character scenes and narrated exchanges.',
+      workflow: 'Keep speaker IDs consistent across the whole script.',
+    },
+    ru: {
+      title: 'Gemini 3.1 Flash TTS',
+      summary: 'Gemini TTS для структурированных и выразительных разговорных сцен.',
+      bestFor: 'Сценарные диалоги, сцены персонажей и озвученные обмены репликами.',
+      workflow: 'Сохраняйте одинаковые идентификаторы спикеров во всём сценарии.',
+    },
+  },
+  'suno/v6': {
+    en: {
+      title: 'Suno V6',
+      summary: 'Current Suno music model for the strongest overall arrangement and polish.',
+      bestFor: 'Release-ready ideas, modern tracks and the best general result.',
+      workflow: 'Describe genre, mood, instrumentation and energy in plain language.',
+    },
+    ru: {
+      title: 'Suno V6',
+      summary: 'Актуальная музыкальная модель Suno с лучшим общим качеством и аранжировкой.',
+      bestFor: 'Сильные музыкальные идеи, современные треки и лучший универсальный результат.',
+      workflow: 'Пишите жанр, настроение, инструменты и энергию обычным человеческим языком.',
+    },
+  },
+  'suno/v6_mini': {
+    en: {
+      title: 'Suno V6 Mini',
+      summary: 'Lighter current Suno mode for faster music iteration.',
+      bestFor: 'Demos, quick concepts and rapid prompt iteration.',
+      workflow: 'Use it to explore several directions before polishing the strongest idea.',
+    },
+    ru: {
+      title: 'Suno V6 Mini',
+      summary: 'Более лёгкий актуальный режим Suno для быстрой итерации музыки.',
+      bestFor: 'Демо, быстрые концепты и перебор вариантов промпта.',
+      workflow: 'Сначала переберите несколько направлений, а затем отполируйте лучшую идею.',
+    },
+  },
+  'suno/v6_wild': {
+    en: {
+      title: 'Suno V6 Wild',
+      summary: 'Experimental current Suno mode for less predictable musical ideas.',
+      bestFor: 'Unexpected arrangements, bold concepts and creative exploration.',
+      workflow: 'Give it a clear mood and constraints, then keep the best surprise.',
+    },
+    ru: {
+      title: 'Suno V6 Wild',
+      summary: 'Экспериментальный актуальный режим Suno для менее предсказуемых музыкальных идей.',
+      bestFor: 'Необычные аранжировки, смелые концепты и творческий поиск.',
+      workflow: 'Задайте настроение и ограничения, а затем выберите лучший неожиданный результат.',
     },
   },
   'suno/v5': {

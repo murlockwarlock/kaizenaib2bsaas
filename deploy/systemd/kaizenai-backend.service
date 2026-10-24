@@ -1,6 +1,7 @@
 [Unit]
 Description=KaizenAI backend
-After=network.target
+After=network-online.target postgresql.service redis-server.service
+Wants=network-online.target postgresql.service redis-server.service
 
 [Service]
 Type=simple

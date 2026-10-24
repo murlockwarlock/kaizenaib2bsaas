@@ -177,7 +177,15 @@ def get_dashboard_stats(db: Session = Depends(get_db), current_user: User = Depe
         .scalar()
         or 0.0
     )
-    kie_remaining_credits = get_kie_remaining_credits_sync()
+    # The provider quota is an optional dashboard metric. A missing key or a
+    # temporary KIE outage must not make the entire admin dashboard return 5xx.
+    # Keep the metric unavailable and let the UI render the rest of the
+    # dashboard while the provider-specific failure remains in server logs.
+    try:
+        kie_remaining_credits = get_kie_remaining_credits_sync()
+    except Exception as exc:
+        logger.warning("KIE quota is unavailable for admin stats: %s", exc)
+        kie_remaining_credits = None
 
     # Breakdown by category
     category_counts = db.query(Task.category, func.count(Task.id)).filter(Task.status == "success").group_by(Task.category).all()
@@ -294,7 +302,10 @@ def adjust_user_balance(
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    user.balance = max(0.0, user.balance + amount)
+    # Numeric columns are returned as Decimal values by PostgreSQL. Convert at
+    # the arithmetic boundary so admin balance adjustments work identically on
+    # SQLite and PostgreSQL and never mix Decimal with float.
+    user.balance = round_money(max(float(user.balance or 0) + amount, 0.0))
     db.commit()
     return {"id": user.id, "balance": user.balance}
 

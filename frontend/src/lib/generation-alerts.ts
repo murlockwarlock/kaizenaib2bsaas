@@ -4,6 +4,24 @@ function normalizeMessage(message: string | null | undefined) {
   return String(message || '').trim().toLowerCase();
 }
 
+export function localizeProviderError(
+  message: string | null | undefined,
+  locale: 'ru' | 'en',
+) {
+  const normalized = normalizeMessage(message);
+  if (normalized.includes('ai generation is disabled') || normalized.includes('provider access is configured')) {
+    return locale === 'ru'
+      ? 'Генерации временно недоступны: доступ к провайдеру ещё не настроен.'
+      : 'Generations are temporarily unavailable because provider access is not configured yet.';
+  }
+  if (normalized.includes('billing is disabled')) {
+    return locale === 'ru'
+      ? 'Оплата временно недоступна: платёжный провайдер ещё не настроен.'
+      : 'Payments are temporarily unavailable because the payment provider is not configured yet.';
+  }
+  return message || undefined;
+}
+
 export function isProviderOverloadMessage(message: string | null | undefined) {
   const normalized = normalizeMessage(message);
   if (!normalized) return false;
@@ -25,7 +43,14 @@ export function isProviderOverloadMessage(message: string | null | undefined) {
   ].some((token) => normalized.includes(token));
 }
 
-export function getGenerationFailureDescription(message: string | null | undefined, t: Translator) {
+export function getGenerationFailureDescription(
+  message: string | null | undefined,
+  t: Translator,
+  creditsRefunded = true,
+) {
+  if (!creditsRefunded) {
+    return t('failed_provider_pending_desc');
+  }
   if (isProviderOverloadMessage(message)) {
     return t('failed_overload_desc');
   }

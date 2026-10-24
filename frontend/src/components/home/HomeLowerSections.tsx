@@ -18,7 +18,7 @@ const NEW_MODELS = new Set([
   'seedance/1.5-pro', 'kling/v3.0-video', 'kling-3/motion-control',
 ]);
 const HOT_MODELS = new Set([
-  'flux/1.1-ultra', 'kling/v2.6-image-to-video', 'suno/V5',
+  'flux/1.1-ultra', 'kling/v2.6-image-to-video', 'suno/V6',
   'flux/1.1-pro', 'hailuo/02-image-to-video', 'imagen/4-ultra',
 ]);
 

@@ -8,6 +8,9 @@ class Settings(BaseSettings):
 
     # Database (SQLite for dev, PostgreSQL for production)
     DATABASE_URL: str = "sqlite:///./mvp.db"
+    # Local development may create the schema automatically. Production
+    # releases run the migration job before starting API processes.
+    AUTO_CREATE_SCHEMA: bool = True
 
     # JWT Auth — SECRET_KEY is required, must be set in .env
     SECRET_KEY: str = ""
@@ -20,6 +23,7 @@ class Settings(BaseSettings):
     # Public backend URL for callbacks (e.g. Suno webhook)
     BASE_URL: str = ""
     CORS_ALLOW_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000"
+    KIE_CALLBACK_TOKEN: str = ""
     SUNO_CALLBACK_TOKEN: str = ""
     YOOKASSA_SHOP_ID: str = ""
     YOOKASSA_SECRET_KEY: str = ""
@@ -37,6 +41,21 @@ class Settings(BaseSettings):
     SMTP_USE_SSL: bool = True
     SMTP_FROM_NAME: str = "KaizenAI"
     REDIS_URL: str = "redis://127.0.0.1:6379/0"
+    CELERY_BROKER_URL: str = ""
+    CELERY_RESULT_BACKEND: str = ""
+    CELERY_QUEUE_NAME: str = "ai_editor"
+    CELERY_WORKER_CONCURRENCY: int = 2
+    CELERY_TASK_SOFT_TIME_LIMIT: int = 20 * 60
+    CELERY_TASK_TIME_LIMIT: int = 25 * 60
+    CELERY_RECONCILIATION_INTERVAL_SECONDS: int = 60
+
+    @property
+    def celery_broker_url(self) -> str:
+        return self.CELERY_BROKER_URL or self.REDIS_URL
+
+    @property
+    def celery_result_backend(self) -> str:
+        return self.CELERY_RESULT_BACKEND or self.REDIS_URL
 
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""

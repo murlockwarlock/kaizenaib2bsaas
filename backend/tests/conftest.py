@@ -21,9 +21,12 @@ from core.rate_limit import limiter
 from main import app
 
 
-# Create a test database (SQLite in-memory)
-SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
-engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
+# SQLite remains the fast local default. CI can set TEST_DATABASE_URL to a
+# disposable PostgreSQL database so the same API tests exercise real Numeric,
+# locking and index behavior.
+SQLALCHEMY_DATABASE_URL = os.getenv("TEST_DATABASE_URL", "sqlite:///./test.db")
+connect_args = {"check_same_thread": False} if SQLALCHEMY_DATABASE_URL.startswith("sqlite") else {}
+engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args=connect_args)
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 

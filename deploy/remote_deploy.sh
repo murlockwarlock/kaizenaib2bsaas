@@ -72,6 +72,8 @@ rollback() {
         ln -s "$PREVIOUS_RELEASE" "$NEXT_LINK"
         mv -Tf "$NEXT_LINK" "$CURRENT_LINK"
         sudo systemctl restart kaizenai-backend.service
+        sudo systemctl restart kaizenai-worker.service
+        sudo systemctl restart kaizenai-beat.service
         sudo systemctl restart kaizenai-frontend.service
     fi
     cleanup
@@ -143,10 +145,12 @@ if [[ -e "$RELEASE_DIR" ]]; then
 fi
 
 run_logged packages sudo apt-get update
-run_logged packages sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates certbot curl nginx openssl python3 python3-pip python3-venv build-essential redis-server sqlite3 xz-utils
+run_logged packages sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates certbot curl nginx openssl python3 python3-pip python3-venv build-essential postgresql postgresql-client redis-server sqlite3 xz-utils
 ensure_swap
 run_logged redis-service sudo systemctl enable --now redis-server
 run_logged redis-health redis-cli ping
+run_logged postgres-service sudo systemctl enable --now postgresql
+run_logged postgres-health sudo -u postgres pg_isready
 
 if [[ ! -x "$NODE_BIN" || ! -x "$NPM_BIN" ]]; then
     NODE_ARCHIVE=$(mktemp)
@@ -170,9 +174,21 @@ rm -f "$RELEASE_DIR/DEPLOY_MANIFEST.sha256"
 if [[ ! -f "$SHARED_DIR/backend.env" ]]; then
     umask 0077
     BACKEND_SECRET=$(openssl rand -hex 32)
+    DATABASE_USER="kaizenai"
+    DATABASE_NAME="kaizenai"
+    DATABASE_PASSWORD=$(openssl rand -hex 32)
+    if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='$DATABASE_USER'" | grep -Fxq 1; then
+        sudo -u postgres psql -v ON_ERROR_STOP=1 -c "CREATE ROLE $DATABASE_USER LOGIN PASSWORD '$DATABASE_PASSWORD'"
+    else
+        sudo -u postgres psql -v ON_ERROR_STOP=1 -c "ALTER ROLE $DATABASE_USER WITH LOGIN PASSWORD '$DATABASE_PASSWORD'"
+    fi
+    if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='$DATABASE_NAME'" | grep -Fxq 1; then
+        sudo -u postgres createdb -O "$DATABASE_USER" "$DATABASE_NAME"
+    fi
     {
         printf 'PROJECT_NAME=KaizenAI\n'
-        printf 'DATABASE_URL=sqlite:////opt/kaizenai/shared/mvp.db\n'
+        printf 'DATABASE_URL=postgresql+psycopg2://%s:%s@127.0.0.1:5432/%s\n' "$DATABASE_USER" "$DATABASE_PASSWORD" "$DATABASE_NAME"
+        printf 'AUTO_CREATE_SCHEMA=false\n'
         printf 'SECRET_KEY=%s\n' "$BACKEND_SECRET"
         printf 'KIE_API_KEY=\n'
         printf 'KIE_API_URL=https://api.kie.ai\n'
@@ -202,6 +218,12 @@ fi
 grep -Fqx "BASE_URL=https://$DOMAIN" "$SHARED_DIR/backend.env"
 grep -Fqx "CORS_ALLOW_ORIGINS=https://$DOMAIN" "$SHARED_DIR/backend.env"
 grep -Eq '^SECRET_KEY=.{32,}$' "$SHARED_DIR/backend.env"
+if grep -Eq '^DATABASE_URL=sqlite:' "$SHARED_DIR/backend.env"; then
+    printf 'Refusing production deploy with SQLite. Migrate the existing database to PostgreSQL and update %s first.\n' "$SHARED_DIR/backend.env" >&2
+    exit 1
+fi
+grep -Eq '^DATABASE_URL=postgresql(\+psycopg2)?://[^[:space:]]+$' "$SHARED_DIR/backend.env"
+grep -Fqx 'AUTO_CREATE_SCHEMA=false' "$SHARED_DIR/backend.env"
 grep -Fqx "NEXT_PUBLIC_SITE_URL=https://$DOMAIN" "$SHARED_DIR/frontend.env"
 chown ubuntu:ubuntu "$SHARED_DIR/backend.env" "$SHARED_DIR/frontend.env"
 chmod 0600 "$SHARED_DIR/backend.env" "$SHARED_DIR/frontend.env"
@@ -226,7 +248,7 @@ rm -f "$RELEASE_DIR/frontend/.env.production"
 
 SYSTEMD_BACKUP_DIR="$BACKUP_DIR/systemd"
 install -d -o ubuntu -g ubuntu -m 0755 "$SYSTEMD_BACKUP_DIR"
-for unit in kaizenai-backend.service kaizenai-frontend.service; do
+for unit in kaizenai-backend.service kaizenai-worker.service kaizenai-beat.service kaizenai-frontend.service; do
     unit_path="/etc/systemd/system/$unit"
     if [[ -f "$unit_path" ]]; then
         cp -p "$unit_path" "$SYSTEMD_BACKUP_DIR/$unit.$(date -u +%Y%m%dT%H%M%SZ)"
@@ -265,9 +287,14 @@ mv -Tf "$NEXT_LINK" "$CURRENT_LINK"
 SWITCHED=1
 
 sudo systemctl daemon-reload
-sudo systemctl enable kaizenai-backend.service kaizenai-frontend.service
+sudo systemctl enable kaizenai-backend.service kaizenai-worker.service kaizenai-beat.service kaizenai-frontend.service
 sudo systemctl restart kaizenai-backend.service
+sudo systemctl restart kaizenai-worker.service
+sudo systemctl restart kaizenai-beat.service
 sudo systemctl restart kaizenai-frontend.service
+
+sudo systemctl is-active --quiet kaizenai-worker.service
+sudo systemctl is-active --quiet kaizenai-beat.service
 
 for attempt in {1..30}; do
     if curl -fsS --max-time 5 http://127.0.0.1:8000/health 2>/dev/null | grep -Fq "\"$EXPECTED_REVISION\""; then
@@ -333,6 +360,8 @@ fi
 
 printf 'revision=%s\n' "$EXPECTED_REVISION"
 printf 'backend=active\n'
+printf 'worker=active\n'
+printf 'beat=active\n'
 printf 'frontend=active\n'
 printf 'nginx=active\n'
 printf 'tls=active\n'

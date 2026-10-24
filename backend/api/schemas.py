@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, field_validator, model_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 from datetime import datetime
 
 # Auth Schemas
@@ -125,12 +125,27 @@ class PasswordResetConfirm(BaseModel):
 from typing import Dict, Any, Optional, List
 
 class GenerateRequest(BaseModel):
-    category: str
-    model: str
-    inputs: Dict[str, Any]
+    category: str = Field(min_length=1, max_length=32)
+    model: str = Field(min_length=1, max_length=160)
+    inputs: Dict[str, Any] = Field(default_factory=dict)
     resolution: Optional[str] = None
     duration: Optional[int] = None
     is_public: Optional[bool] = False
+
+    @field_validator("category", "model")
+    @classmethod
+    def normalize_generation_identifier(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("Generation category and model cannot be blank")
+        return normalized
+
+    @field_validator("inputs")
+    @classmethod
+    def validate_generation_inputs(cls, value: Dict[str, Any]) -> Dict[str, Any]:
+        if len(value) > 100:
+            raise ValueError("Too many generation input fields")
+        return value
 
 # Admin Schemas
 class PromotionCreate(BaseModel):

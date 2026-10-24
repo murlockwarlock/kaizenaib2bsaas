@@ -10,6 +10,7 @@ import { apiClient } from '@/lib/api';
 import { useAuth } from '@/components/AuthContext';
 import AuthRequiredModal from '@/components/AuthRequiredModal';
 import { trackGeneration } from '@/lib/generation-tracker';
+import { localizeProviderError } from '@/lib/generation-alerts';
 import type { AudioExample, DialogueLine } from '@/components/audio/AudioShowcasePanel';
 import { getModelGuide, type SupportedLocale } from '@/lib/model-presenter';
 import type { FeaturedAudio } from '@/lib/types';
@@ -297,7 +298,7 @@ function AudioAIToolContent() {
       const message = typeof error === 'object' && error !== null && 'response' in error
         ? (error as { response?: { data?: { detail?: string } } }).response?.data?.detail
         : undefined;
-      toast.error(message || t('error_generic'));
+      toast.error(localizeProviderError(message, locale) || t('error_generic'));
     } finally {
       setLoading(false);
     }

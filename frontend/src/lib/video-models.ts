@@ -1,4 +1,8 @@
 export type VideoModelId =
+  | 'bytedance/seedance-2-5'
+  | 'bytedance/seedance-2'
+  | 'bytedance/seedance-2-fast'
+  | 'bytedance/seedance-2-mini'
   | 'bytedance/seedance-1-5-pro'
   | 'bytedance/v1-pro-fast-image-to-video'
   | 'bytedance/v1-pro-image-to-video'
@@ -13,6 +17,9 @@ export type VideoModelId =
   | 'kling/ai-avatar-pro'
   | 'kling-3/motion-control'
   | 'kling-3.0/video'
+  | 'kling-4.0/reference-to-video'
+  | 'kling-4.0/keyframe-to-video'
+  | 'veo-3-1'
   | 'veo-3.1/text-fast'
   | 'veo-3.1/text-quality'
   | 'veo-3.1/image-fast'
@@ -36,11 +43,20 @@ export type VideoModelId =
   | 'wan/2-2-animate-replace'
   | 'wan/2-6-flash-image-to-video'
   | 'wan/2-6-flash-video-to-video'
+  | 'wan/2-7-text-to-video'
+  | 'wan/2-7-image-to-video'
+  | 'wan/2-7-videoedit'
+  | 'wan/2-7-r2v'
+  | 'wan/3-0-video'
+  | 'wan/3-0-video-prime'
+  | 'grok-imagine-video-1-5-preview'
+  | 'pixverse-v6-max/text-to-video'
+  | 'pixverse-v6-max/image-to-video'
   | 'runway/generate'
   | 'runway/extend'
   | 'runway/aleph-generate';
 
-export type VideoFamilyId = 'bytedance' | 'kling' | 'veo' | 'hailuo' | 'wan' | 'runway';
+export type VideoFamilyId = 'bytedance' | 'kling' | 'veo' | 'hailuo' | 'wan' | 'runway' | 'grok' | 'pixverse';
 
 export type UploadSlot = {
   key: string;
@@ -107,11 +123,318 @@ export const VIDEO_FAMILY_LABELS: Record<VideoFamilyId, { ru: string; en: string
   hailuo: { ru: 'Hailuo', en: 'Hailuo' },
   wan: { ru: 'Wan', en: 'Wan' },
   runway: { ru: 'Runway', en: 'Runway' },
+  grok: { ru: 'Grok', en: 'Grok' },
+  pixverse: { ru: 'PixVerse', en: 'PixVerse' },
 };
 
 export const VIDEO_ACCELERATION_OPTIONS = ['none'];
 
 export const VIDEO_MODELS: VideoModelDefinition[] = [
+  {
+    id: 'bytedance/seedance-2-5',
+    name: 'Seedance 2.5',
+    family: 'bytedance',
+    familyLabel: VIDEO_FAMILY_LABELS.bytedance,
+    summary: {
+      ru: 'Новая мультимодальная модель ByteDance: до 30 секунд, 1080p и референсы изображений, видео и аудио.',
+      en: 'ByteDance\'s newer multimodal model with up to 30 seconds, 1080p and image, video and audio references.',
+    },
+    promptRequired: true,
+    aspectRatios: ['16:9', '4:3', '1:1', '3:4', '9:16', '21:9', 'adaptive'],
+    resolutions: ['480p', '720p', '1080p'],
+    durationOptions: [4, 5, 8, 10, 15, 30],
+    supportsGenerateAudio: true,
+    uploadSlots: [
+      { key: 'first_frame_url', label: 'Первый кадр', kind: 'image', maxFiles: 1, help: 'Необязательно. Первый кадр ролика.', required: false },
+      { key: 'last_frame_url', label: 'Последний кадр', kind: 'image', maxFiles: 1, help: 'Необязательно. Последний кадр; используется вместе с первым.', required: false },
+      { key: 'reference_image_urls', label: 'Референсы изображений', kind: 'image', maxFiles: 10, help: 'Необязательные изображения для управления сценой.', required: false },
+      { key: 'reference_video_urls', label: 'Референсы видео', kind: 'video', maxFiles: 3, help: 'Необязательные видео-референсы.', required: false },
+      { key: 'reference_audio_urls', label: 'Референсы аудио', kind: 'audio', maxFiles: 3, help: 'Необязательные аудио-референсы.', required: false },
+    ],
+  },
+  {
+    id: 'bytedance/seedance-2',
+    name: 'Seedance 2.0',
+    family: 'bytedance',
+    familyLabel: VIDEO_FAMILY_LABELS.bytedance,
+    summary: {
+      ru: 'Мультимодальный Seedance 2.0 для текста, кадров, видео- и аудиореференсов, включая 4K.',
+      en: 'Multimodal Seedance 2.0 for text, frames, video and audio references, including 4K output.',
+    },
+    promptRequired: true,
+    aspectRatios: ['16:9', '4:3', '1:1', '3:4', '9:16', '21:9'],
+    resolutions: ['480p', '720p', '1080p', '4k'],
+    durationOptions: [4, 5, 8, 10, 15],
+    supportsGenerateAudio: true,
+    uploadSlots: [
+      { key: 'first_frame_url', label: 'Первый кадр', kind: 'image', maxFiles: 1, help: 'Необязательно. Первый кадр; не смешивается с reference-полями.', required: false },
+      { key: 'last_frame_url', label: 'Последний кадр', kind: 'image', maxFiles: 1, help: 'Необязательно. Требует первый кадр.', required: false },
+      { key: 'reference_image_urls', label: 'Референсы изображений', kind: 'image', maxFiles: 9, help: 'Необязательные изображения для мультимодального режима.', required: false },
+      { key: 'reference_video_urls', label: 'Референсы видео', kind: 'video', maxFiles: 3, help: 'Необязательные видео-референсы.', required: false },
+      { key: 'reference_audio_urls', label: 'Референсы аудио', kind: 'audio', maxFiles: 3, help: 'Необязательные аудио-референсы.', required: false },
+    ],
+  },
+  {
+    id: 'bytedance/seedance-2-fast',
+    name: 'Seedance 2.0 Fast',
+    family: 'bytedance',
+    familyLabel: VIDEO_FAMILY_LABELS.bytedance,
+    summary: {
+      ru: 'Быстрый и более экономичный Seedance 2.0 для итераций и массовых роликов.',
+      en: 'Faster, more cost-efficient Seedance 2.0 for iteration and scaled video workflows.',
+    },
+    promptRequired: true,
+    aspectRatios: ['16:9', '4:3', '1:1', '3:4', '9:16', '21:9'],
+    resolutions: ['480p', '720p'],
+    durationOptions: [4, 5, 8, 10, 15],
+    supportsGenerateAudio: true,
+    uploadSlots: [
+      { key: 'first_frame_url', label: 'Первый кадр', kind: 'image', maxFiles: 1, help: 'Необязательно. Первый кадр.', required: false },
+      { key: 'last_frame_url', label: 'Последний кадр', kind: 'image', maxFiles: 1, help: 'Необязательно. Требует первый кадр.', required: false },
+      { key: 'reference_image_urls', label: 'Референсы изображений', kind: 'image', maxFiles: 9, help: 'Необязательные изображения.', required: false },
+      { key: 'reference_video_urls', label: 'Референсы видео', kind: 'video', maxFiles: 3, help: 'Необязательные видео-референсы.', required: false },
+      { key: 'reference_audio_urls', label: 'Референсы аудио', kind: 'audio', maxFiles: 3, help: 'Необязательные аудио-референсы.', required: false },
+    ],
+  },
+  {
+    id: 'bytedance/seedance-2-mini',
+    name: 'Seedance 2.0 Mini',
+    family: 'bytedance',
+    familyLabel: VIDEO_FAMILY_LABELS.bytedance,
+    summary: {
+      ru: 'Экономичный Seedance 2.0 Mini для быстрых проверок и недорогих генераций.',
+      en: 'Cost-efficient Seedance 2.0 Mini for fast checks and lower-cost generations.',
+    },
+    promptRequired: true,
+    aspectRatios: ['16:9', '4:3', '1:1', '3:4', '9:16', '21:9', 'adaptive'],
+    resolutions: ['480p', '720p'],
+    durationOptions: [4, 5, 8, 10, 15],
+    supportsGenerateAudio: true,
+    uploadSlots: [
+      { key: 'first_frame_url', label: 'Первый кадр', kind: 'image', maxFiles: 1, help: 'Необязательно. Первый кадр.', required: false },
+      { key: 'last_frame_url', label: 'Последний кадр', kind: 'image', maxFiles: 1, help: 'Необязательно. Требует первый кадр.', required: false },
+      { key: 'reference_image_urls', label: 'Референсы изображений', kind: 'image', maxFiles: 9, help: 'Необязательные изображения.', required: false },
+      { key: 'reference_video_urls', label: 'Референсы видео', kind: 'video', maxFiles: 3, help: 'Необязательные видео-референсы.', required: false },
+      { key: 'reference_audio_urls', label: 'Референсы аудио', kind: 'audio', maxFiles: 3, help: 'Необязательные аудио-референсы.', required: false },
+    ],
+  },
+  {
+    id: 'kling-4.0/reference-to-video',
+    name: 'Kling 4.0 Reference',
+    family: 'kling',
+    familyLabel: VIDEO_FAMILY_LABELS.kling,
+    summary: {
+      ru: 'Kling 4.0 для сцен с референсными изображениями и видео, синхронным звуком и элементами.',
+      en: 'Kling 4.0 for reference images and videos, synchronized sound and reusable elements.',
+    },
+    promptRequired: true,
+    aspectRatios: ['16:9', '9:16', '1:1'],
+    resolutions: ['720p', '1080p'],
+    durationOptions: [5, 10, 15, 30],
+    supportsKlingElements: true,
+    uploadSlots: [
+      { key: 'image_urls', label: 'Референсы изображений', kind: 'image', maxFiles: 10, help: 'Необязательно. Изображения, на которые можно ссылаться в промпте.', required: false },
+      { key: 'video_urls', label: 'Референсы видео', kind: 'video', maxFiles: 5, help: 'Необязательно. Видео, на которые можно ссылаться в промпте.', required: false },
+    ],
+  },
+  {
+    id: 'kling-4.0/keyframe-to-video',
+    name: 'Kling 4.0 Keyframe',
+    family: 'kling',
+    familyLabel: VIDEO_FAMILY_LABELS.kling,
+    summary: {
+      ru: 'Kling 4.0 с первым, промежуточными и последним ключевыми кадрами.',
+      en: 'Kling 4.0 with first, middle and last keyframes for directed transitions.',
+    },
+    promptRequired: true,
+    resolutions: ['720p', '1080p'],
+    durationOptions: [5, 10, 15, 30],
+    uploadSlots: [
+      { key: 'first_frame_url', label: 'Первый кадр', kind: 'image', maxFiles: 1, help: 'Обязательный стартовый кадр.' },
+      { key: 'keyframe_urls', label: 'Промежуточные кадры', kind: 'image', maxFiles: 8, help: 'Необязательные промежуточные кадры.', required: false },
+      { key: 'last_frame_url', label: 'Последний кадр', kind: 'image', maxFiles: 1, help: 'Необязательный финальный кадр.', required: false },
+    ],
+  },
+  {
+    id: 'veo-3-1',
+    name: 'Veo 3.1 Unified',
+    family: 'veo',
+    familyLabel: VIDEO_FAMILY_LABELS.veo,
+    summary: {
+      ru: 'Актуальный unified-путь Veo 3.1 для текста, одного/двух кадров и native audio.',
+      en: 'The current unified Veo 3.1 path for text, one/two frame references and native audio.',
+    },
+    promptRequired: true,
+    aspectRatios: ['16:9', '9:16'],
+    resolutions: ['720p', '1080p', '4k'],
+    durationOptions: [4, 6, 8],
+    uploadSlots: [
+      { key: 'image_urls', label: 'Кадры-референсы', kind: 'image', maxFiles: 2, help: 'Необязательно. Один или два кадра для image-to-video.', required: false },
+    ],
+  },
+  {
+    id: 'grok-imagine-video-1-5-preview',
+    name: 'Grok Imagine Video 1.5',
+    family: 'grok',
+    familyLabel: VIDEO_FAMILY_LABELS.grok,
+    summary: {
+      ru: 'Grok Imagine Video 1.5 с генерацией синхронного аудио и поддержкой keyframes.',
+      en: 'Grok Imagine Video 1.5 with synchronized audio and keyframe-aware generation.',
+    },
+    promptRequired: true,
+    aspectRatios: ['auto', '1:1', '16:9', '9:16', '3:2', '2:3'],
+    resolutions: ['480p', '720p', '1080p'],
+    durationOptions: [1, 4, 8, 12, 15],
+    uploadSlots: [
+      { key: 'image_urls', label: 'Кадры-референсы', kind: 'image', maxFiles: 7, help: 'Необязательные изображения; в промпте используются ссылки @image1, @image2 и т.д.', required: false },
+    ],
+  },
+  {
+    id: 'pixverse-v6-max/text-to-video',
+    name: 'PixVerse V6 Max Text',
+    family: 'pixverse',
+    familyLabel: VIDEO_FAMILY_LABELS.pixverse,
+    summary: {
+      ru: 'Актуальный PixVerse V6 Max для кинематографичного text-to-video до 15 секунд с опциональным native audio.',
+      en: 'Current PixVerse V6 Max text-to-video for cinematic clips up to 15 seconds with optional native audio.',
+    },
+    promptRequired: true,
+    aspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4', '21:9'],
+    resolutions: ['360p', '540p', '720p', '1080p'],
+    durationOptions: [5, 8, 10, 15],
+    supportsGenerateAudio: true,
+    supportsSeed: true,
+  },
+  {
+    id: 'pixverse-v6-max/image-to-video',
+    name: 'PixVerse V6 Max Image',
+    family: 'pixverse',
+    familyLabel: VIDEO_FAMILY_LABELS.pixverse,
+    summary: {
+      ru: 'PixVerse V6 Max для оживления одного изображения с native audio; пропорции берутся из входного изображения.',
+      en: 'PixVerse V6 Max image-to-video from one input image with optional native audio; aspect follows the input.',
+    },
+    promptRequired: true,
+    resolutions: ['360p', '540p', '720p', '1080p'],
+    durationOptions: [5, 8, 10, 15],
+    supportsGenerateAudio: true,
+    supportsSeed: true,
+    uploadSlots: [
+      { key: 'image_urls', label: 'Референсное изображение', kind: 'image', maxFiles: 1, help: 'Одно изображение используется как первый кадр.' },
+    ],
+  },
+  {
+    id: 'wan/2-7-text-to-video',
+    name: 'Wan 2.7 Text',
+    family: 'wan',
+    familyLabel: VIDEO_FAMILY_LABELS.wan,
+    summary: {
+      ru: 'Новый текстовый Wan 2.7 с prompt extension, native audio и 1080p.',
+      en: 'New Wan 2.7 text-to-video with prompt extension, native audio and 1080p.',
+    },
+    promptRequired: true,
+    aspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4', '21:9', 'adaptive'],
+    resolutions: ['480p', '720p', '1080p'],
+    durationOptions: [5, 10],
+    supportsEnablePromptExpansion: true,
+    uploadSlots: [
+      { key: 'audio_url', label: 'Аудио-референс', kind: 'audio', maxFiles: 1, help: 'Необязательно. Исходная дорожка.', required: false },
+    ],
+  },
+  {
+    id: 'wan/2-7-image-to-video',
+    name: 'Wan 2.7 Image',
+    family: 'wan',
+    familyLabel: VIDEO_FAMILY_LABELS.wan,
+    summary: {
+      ru: 'Wan 2.7 для первого кадра, пары первый/последний кадр или продолжения клипа.',
+      en: 'Wan 2.7 for first-frame, first/last-frame and clip-continuation workflows.',
+    },
+    promptRequired: true,
+    resolutions: ['480p', '720p', '1080p'],
+    durationOptions: [5, 10],
+    supportsEnablePromptExpansion: true,
+    uploadSlots: [
+      { key: 'first_frame_url', label: 'Первый кадр', kind: 'image', maxFiles: 1, help: 'Обязательный кадр или замените его исходным клипом.', required: false },
+      { key: 'last_frame_url', label: 'Последний кадр', kind: 'image', maxFiles: 1, help: 'Необязательно. Финальный кадр.', required: false },
+      { key: 'first_clip_url', label: 'Исходный клип', kind: 'video', maxFiles: 1, help: 'Необязательно. Для продолжения видео.', required: false },
+    ],
+  },
+  {
+    id: 'wan/2-7-videoedit',
+    name: 'Wan 2.7 Video Edit',
+    family: 'wan',
+    familyLabel: VIDEO_FAMILY_LABELS.wan,
+    summary: {
+      ru: 'Wan 2.7 для редактирования готового видео с референсным изображением.',
+      en: 'Wan 2.7 for editing an existing video with an optional reference image.',
+    },
+    promptRequired: true,
+    aspectRatios: ['16:9', '9:16', '1:1'],
+    resolutions: ['480p', '720p', '1080p'],
+    durationOptions: [5, 10],
+    supportsEnablePromptExpansion: true,
+    uploadSlots: [
+      { key: 'video_url', label: 'Исходное видео', kind: 'video', maxFiles: 1, help: 'Обязательное видео для редактирования.' },
+      { key: 'reference_image', label: 'Референсное изображение', kind: 'image', maxFiles: 1, help: 'Необязательная картинка для замены/добавления.', required: false },
+    ],
+  },
+  {
+    id: 'wan/2-7-r2v',
+    name: 'Wan 2.7 Reference',
+    family: 'wan',
+    familyLabel: VIDEO_FAMILY_LABELS.wan,
+    summary: {
+      ru: 'Wan 2.7 с несколькими референсными изображениями, видео и первым кадром.',
+      en: 'Wan 2.7 with multiple reference images, videos and a first frame.',
+    },
+    promptRequired: true,
+    aspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
+    resolutions: ['480p', '720p', '1080p'],
+    durationOptions: [5, 10],
+    supportsEnablePromptExpansion: true,
+    uploadSlots: [
+      { key: 'reference_image', label: 'Референсы изображений', kind: 'image', maxFiles: 9, help: 'Минимум один референс.', required: false },
+      { key: 'reference_video', label: 'Референсы видео', kind: 'video', maxFiles: 3, help: 'Необязательные видео-референсы.', required: false },
+      { key: 'first_frame', label: 'Первый кадр', kind: 'image', maxFiles: 1, help: 'Необязательный первый кадр.', required: false },
+      { key: 'reference_voice', label: 'Голосовой референс', kind: 'audio', maxFiles: 1, help: 'Необязательная голосовая дорожка.', required: false },
+    ],
+  },
+  {
+    id: 'wan/3-0-video',
+    name: 'Wan 3.0',
+    family: 'wan',
+    familyLabel: VIDEO_FAMILY_LABELS.wan,
+    summary: {
+      ru: 'Wan 3.0 для мультимодальных сцен с native audio.',
+      en: 'Wan 3.0 for multimodal scenes with native audio.',
+    },
+    promptRequired: true,
+    aspectRatios: ['16:9', '9:16', 'adaptive'],
+    resolutions: ['480P', '720P', '1080P'],
+    durationOptions: [5, 10],
+    supportsGenerateAudio: true,
+    uploadSlots: [
+      { key: 'image_urls', label: 'Изображения', kind: 'image', maxFiles: 9, help: 'Необязательные изображения.', required: false },
+      { key: 'video_urls', label: 'Видео', kind: 'video', maxFiles: 3, help: 'Необязательные видео-референсы.', required: false },
+      { key: 'audio_urls', label: 'Аудио', kind: 'audio', maxFiles: 3, help: 'Необязательные аудио-референсы.', required: false },
+    ],
+  },
+  {
+    id: 'wan/3-0-video-prime',
+    name: 'Wan 3.0 Prime',
+    family: 'wan',
+    familyLabel: VIDEO_FAMILY_LABELS.wan,
+    summary: {
+      ru: 'Ускоренный Wan 3.0 Prime для повседневных генераций и native audio.',
+      en: 'Faster Wan 3.0 Prime for everyday generations with native audio.',
+    },
+    promptRequired: true,
+    aspectRatios: ['16:9', '9:16', 'adaptive'],
+    resolutions: ['480P', '720P', '1080P'],
+    durationOptions: [5, 10],
+    supportsGenerateAudio: true,
+  },
   {
     id: 'bytedance/seedance-1-5-pro',
     name: 'Bytedance Seedance 1.5 Pro',
@@ -343,7 +666,7 @@ export const VIDEO_MODELS: VideoModelDefinition[] = [
     promptRequired: true,
     aspectRatios: ['16:9', '9:16', '1:1'],
     durationOptions: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
-    modeOptions: ['std', 'pro'],
+    modeOptions: ['std', 'pro', '4K'],
     supportsSound: true,
     supportsMultiShots: true,
     supportsKlingElements: true,

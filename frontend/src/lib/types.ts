@@ -50,7 +50,7 @@ export interface GenerationTask {
     user_id: number;
     model: string;
     category: string;
-    status: 'pending' | 'processing' | 'completed' | 'failed' | 'success';
+    status: 'pending' | 'processing' | 'submission_unknown' | 'completed' | 'failed' | 'success';
     result_url: string | null;
     output_url: string | null;
     input_url: string | null;
@@ -59,6 +59,7 @@ export interface GenerationTask {
     provider_status?: string | null;
     error_message?: string | null;
     error_details?: string | null;
+    credits_refunded?: boolean;
     settings_snapshot_json?: string | null;
     settings_snapshot?: Record<string, unknown> | null;
     view_count?: number;

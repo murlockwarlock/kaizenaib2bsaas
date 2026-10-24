@@ -9,7 +9,7 @@ import {
     HelpCircle, FileText, Edit2, Sparkles, ChevronDown, ChevronUp, Bug,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useRouter } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/components/AuthContext';
 import { getModelDisplayName } from '@/lib/model-presenter';
 import { DEFAULT_LEGAL_CONTENT } from '@/lib/legal';
@@ -26,6 +26,8 @@ const CATEGORY_MODELS: Record<string, { id: string; name: string }[]> = {
         { id: 'google/nano-banana', name: 'Google Nano Banana' },
         { id: 'google/nano-banana-edit', name: 'Google Nano Banana Edit' },
         { id: 'nano-banana-2', name: 'Nano Banana 2' },
+        { id: 'nano-banana-2-1', name: 'Nano Banana 2.1' },
+        { id: 'nano-banana-2-lite', name: 'Nano Banana 2 Lite' },
         { id: 'nano-banana-pro', name: 'Nano Banana Pro' },
         { id: 'bytedance/seedream-v4-text-to-image', name: 'Seedream V4 (Текст)' },
         { id: 'bytedance/seedream-v4-edit', name: 'Seedream V4 Edit' },
@@ -50,10 +52,12 @@ const CATEGORY_MODELS: Record<string, { id: string; name: string }[]> = {
         { id: 'elevenlabs/text-to-speech-turbo-2-5', name: 'ElevenLabs Turbo 2.5' },
         { id: 'elevenlabs/text-to-speech-multilingual-v2', name: 'ElevenLabs Multilingual V2' },
         { id: 'elevenlabs/text-to-dialogue-v3', name: 'ElevenLabs Dialogue V3' },
-        { id: 'suno/V5', name: 'Suno V5' },
-        { id: 'suno/V4_5PLUS', name: 'Suno V4.5+' },
-        { id: 'suno/V4_5', name: 'Suno V4.5' },
-        { id: 'suno/V4', name: 'Suno V4' },
+        { id: 'suno/V6', name: 'Suno V6' },
+        { id: 'suno/V6_MINI', name: 'Suno V6 Mini' },
+        { id: 'suno/V6_WILD', name: 'Suno V6 Wild' },
+        { id: 'google/gemini-3-8-flash-tts', name: 'Gemini 3.8 Flash TTS' },
+        { id: 'google/gemini-3-8-flash-lite-tts', name: 'Gemini 3.8 Flash Lite TTS' },
+        { id: 'google/gemini-3-1-flash-tts', name: 'Gemini 3.1 Flash TTS' },
     ],
 };
 
@@ -518,6 +522,9 @@ export default function AdminDashboard() {
     const [balanceAmount, setBalanceAmount] = useState('');
 
     const router = useRouter();
+    const params = useParams<{ locale?: string }>();
+    const isEnglish = params?.locale === 'en';
+    const tx = (ru: string, en: string) => (isEnglish ? en : ru);
     const { user, isLoading: authLoading } = useAuth();
     const menuRef = useRef<HTMLDivElement>(null);
 
@@ -1236,29 +1243,29 @@ export default function AdminDashboard() {
     };
 
     const statCards = [
-        { title: 'Пользователи', value: stats?.total_users ?? 0, icon: Users, color: 'from-blue-500 to-cyan-400' },
-        { title: 'Успешные генерации', value: stats?.total_tasks ?? 0, icon: Activity, color: 'from-violet-500 to-purple-400' },
-        { title: 'Генерации видео', value: stats?.tasks_by_category?.video ?? 0, icon: Video, color: 'from-pink-500 to-rose-400' },
-        { title: 'Генерации изображений', value: stats?.tasks_by_category?.image ?? 0, icon: ImageIcon, color: 'from-emerald-500 to-teal-400' },
-        { title: 'Генерации аудио', value: stats?.tasks_by_category?.audio ?? 0, icon: Music, color: 'from-amber-500 to-orange-400' },
-        { title: 'Потрачено кредитов', value: stats?.total_credits_spent ?? 0, icon: Coins, color: 'from-indigo-500 to-blue-400' },
-        { title: 'Выручка', value: `₽ ${Number(stats?.total_revenue ?? 0).toLocaleString()}`, icon: Link2, color: 'from-emerald-500 to-lime-400' },
-        { title: 'Остаток KIE-кредитов', value: stats?.kie_remaining_credits ?? '—', icon: Sparkles, color: 'from-cyan-500 to-teal-400' },
+        { title: tx('Пользователи', 'Users'), value: stats?.total_users ?? 0, icon: Users, color: 'from-blue-500 to-cyan-400' },
+        { title: tx('Успешные генерации', 'Successful generations'), value: stats?.total_tasks ?? 0, icon: Activity, color: 'from-violet-500 to-purple-400' },
+        { title: tx('Генерации видео', 'Video generations'), value: stats?.tasks_by_category?.video ?? 0, icon: Video, color: 'from-pink-500 to-rose-400' },
+        { title: tx('Генерации изображений', 'Image generations'), value: stats?.tasks_by_category?.image ?? 0, icon: ImageIcon, color: 'from-emerald-500 to-teal-400' },
+        { title: tx('Генерации аудио', 'Audio generations'), value: stats?.tasks_by_category?.audio ?? 0, icon: Music, color: 'from-amber-500 to-orange-400' },
+        { title: tx('Потрачено кредитов', 'Credits spent'), value: stats?.total_credits_spent ?? 0, icon: Coins, color: 'from-indigo-500 to-blue-400' },
+        { title: tx('Выручка', 'Revenue'), value: `₽ ${Number(stats?.total_revenue ?? 0).toLocaleString()}`, icon: Link2, color: 'from-emerald-500 to-lime-400' },
+        { title: tx('Остаток KIE-кредитов', 'KIE credits remaining'), value: stats?.kie_remaining_credits ?? '—', icon: Sparkles, color: 'from-cyan-500 to-teal-400' },
     ];
 
     const tabs = [
-        { id: 'overview', label: 'Обзор' },
-        { id: 'users', label: 'Пользователи' },
-        { id: 'moderation', label: 'Модерация' },
+        { id: 'overview', label: tx('Обзор', 'Overview') },
+        { id: 'users', label: tx('Пользователи', 'Users') },
+        { id: 'moderation', label: tx('Модерация', 'Moderation') },
         { id: 'faq', label: 'FAQ' },
-        { id: 'content', label: 'Контент' },
-        { id: 'pricing', label: 'Тарифы' },
-        { id: 'invites', label: 'Инвайты' },
+        { id: 'content', label: tx('Контент', 'Content') },
+        { id: 'pricing', label: tx('Тарифы', 'Plans & prices') },
+        { id: 'invites', label: tx('Инвайты', 'Invites') },
         { id: 'utm', label: 'UTM' },
-        { id: 'access', label: 'Доступ' },
-        { id: 'billing', label: 'Платежи' },
-        { id: 'logs', label: 'Логи' },
-        { id: 'settings', label: 'Настройки' },
+        { id: 'access', label: tx('Доступ', 'Access') },
+        { id: 'billing', label: tx('Платежи', 'Payments') },
+        { id: 'logs', label: tx('Логи', 'Logs') },
+        { id: 'settings', label: tx('Настройки', 'Settings') },
     ];
     const commerceTabs = ['pricing', 'invites', 'utm', 'access', 'billing'];
     const filteredUsers = users.filter((u) => {
@@ -1290,7 +1297,7 @@ export default function AdminDashboard() {
             <div className="min-h-screen flex items-center justify-center">
                 <div className="flex flex-col items-center gap-3">
                     <div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
-                    <span className="text-sm text-zinc-500">Загружаю данные админки...</span>
+                    <span className="text-sm text-zinc-500">{tx('Загружаю данные админки...', 'Loading admin data...')}</span>
                 </div>
             </div>
         );
@@ -1304,9 +1311,9 @@ export default function AdminDashboard() {
                 <div>
                     <div className="flex items-center gap-2 mb-1">
                         <ShieldCheck className="w-6 h-6 text-violet-400" />
-                        <h1 className="text-2xl font-bold text-white">Панель управления</h1>
+                        <h1 className="text-2xl font-bold text-white">{tx('Панель управления', 'Admin dashboard')}</h1>
                     </div>
-                    <p className="text-sm text-zinc-500">Управление пользователями, контентом и настройками приложения.</p>
+                    <p className="text-sm text-zinc-500">{tx('Управление пользователями, контентом и настройками приложения.', 'Manage users, content and application settings.')}</p>
                 </div>
                 <div className="flex bg-zinc-900/50 border border-zinc-800 rounded-xl p-1 overflow-x-auto gap-0.5">
                     {tabs.map(tab => (
@@ -1346,20 +1353,20 @@ export default function AdminDashboard() {
 
                         <div ref={pricingPlansSectionRef} className="rounded-2xl border border-zinc-800/60 bg-zinc-900/40 p-6">
                             <div className="mb-4">
-                                <h2 className="text-base font-bold text-white">Быстрые действия</h2>
-                                <p className="mt-1 text-xs text-zinc-500">Переходите сразу в нужный блок админки.</p>
+                                <h2 className="text-base font-bold text-white">{tx('Быстрые действия', 'Quick actions')}</h2>
+                                <p className="mt-1 text-xs text-zinc-500">{tx('Переходите сразу в нужный блок админки.', 'Jump directly to an admin section.')}</p>
                             </div>
                             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                                     {[
-                                    { label: 'UTM-ссылки', tab: 'utm', ref: utmSectionRef },
-                                    { label: 'Цены моделей', tab: 'pricing', ref: pricingModelSectionRef },
-                                    { label: 'Тарифные планы', tab: 'pricing', ref: pricingPlansSectionRef },
-                                    { label: 'Инвайт-ссылки', tab: 'invites', ref: invitesSectionRef },
-                                    { label: 'Ручные доступы', tab: 'access', ref: grantsSectionRef },
-                                    { label: 'Платежи', tab: 'billing', ref: paymentsSectionRef },
-                                    { label: 'Модерация', tab: 'moderation' },
-                                    { label: 'Пользователи', tab: 'users' },
-                                    { label: 'Логи', tab: 'logs' },
+                                    { label: tx('UTM-ссылки', 'UTM links'), tab: 'utm', ref: utmSectionRef },
+                                    { label: tx('Цены моделей', 'Model prices'), tab: 'pricing', ref: pricingModelSectionRef },
+                                    { label: tx('Тарифные планы', 'Pricing plans'), tab: 'pricing', ref: pricingPlansSectionRef },
+                                    { label: tx('Инвайт-ссылки', 'Invite links'), tab: 'invites', ref: invitesSectionRef },
+                                    { label: tx('Ручные доступы', 'Manual access'), tab: 'access', ref: grantsSectionRef },
+                                    { label: tx('Платежи', 'Payments'), tab: 'billing', ref: paymentsSectionRef },
+                                    { label: tx('Модерация', 'Moderation'), tab: 'moderation' },
+                                    { label: tx('Пользователи', 'Users'), tab: 'users' },
+                                    { label: tx('Логи', 'Logs'), tab: 'logs' },
                                 ].map((item) => (
                                     <button
                                         key={item.label}
@@ -1376,15 +1383,15 @@ export default function AdminDashboard() {
                         <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
                             <div className="rounded-2xl border border-zinc-800/60 bg-zinc-900/40 p-6">
                                 <div className="mb-4">
-                                    <h2 className="text-base font-bold text-white">Выручка и конверсия</h2>
-                                    <p className="mt-1 text-xs text-zinc-500">Быстрый срез по периодам: регистрации, покупатели, конверсия и выручка.</p>
+                                    <h2 className="text-base font-bold text-white">{tx('Выручка и конверсия', 'Revenue and conversion')}</h2>
+                                    <p className="mt-1 text-xs text-zinc-500">{tx('Быстрый срез по периодам: регистрации, покупатели, конверсия и выручка.', 'Quick view of registrations, buyers, conversion and revenue.')}</p>
                                 </div>
                                 <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                                     {[
-                                        { key: 'today', label: 'Сегодня' },
-                                        { key: '7d', label: '7 дней' },
-                                        { key: '30d', label: '30 дней' },
-                                        { key: 'all', label: 'За всё время' },
+                                        { key: 'today', label: tx('Сегодня', 'Today') },
+                                        { key: '7d', label: tx('7 дней', '7 days') },
+                                        { key: '30d', label: tx('30 дней', '30 days') },
+                                        { key: 'all', label: tx('За всё время', 'All time') },
                                     ].map(({ key, label }) => {
                                         const item = analytics?.periods?.[key];
                                         return (
@@ -1392,9 +1399,9 @@ export default function AdminDashboard() {
                                                 <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">{label}</div>
                                                 <div className="mt-3 text-xl font-semibold text-white">₽ {Number(item?.revenue_amount ?? 0).toLocaleString()}</div>
                                                 <div className="mt-3 space-y-1 text-xs text-zinc-400">
-                                                    <div>Регистрации: {item?.registrations_count ?? 0}</div>
-                                                    <div>Покупатели: {item?.buyers_count ?? 0}</div>
-                                                    <div>Конверсия: {item?.conversion_rate ?? 0}%</div>
+                                                    <div>{tx('Регистрации', 'Registrations')}: {item?.registrations_count ?? 0}</div>
+                                                    <div>{tx('Покупатели', 'Buyers')}: {item?.buyers_count ?? 0}</div>
+                                                    <div>{tx('Конверсия', 'Conversion')}: {item?.conversion_rate ?? 0}%</div>
                                                 </div>
                                             </div>
                                         );
@@ -1404,8 +1411,8 @@ export default function AdminDashboard() {
 
                             <div className="rounded-2xl border border-zinc-800/60 bg-zinc-900/40 p-6">
                                 <div className="mb-4">
-                                    <h2 className="text-base font-bold text-white">Лучшие UTM-коды</h2>
-                                    <p className="mt-1 text-xs text-zinc-500">Самые сильные источники по регистрациям и оплаченных тарифам.</p>
+                                    <h2 className="text-base font-bold text-white">{tx('Лучшие UTM-коды', 'Top UTM codes')}</h2>
+                                    <p className="mt-1 text-xs text-zinc-500">{tx('Самые сильные источники по регистрациям и оплаченных тарифам.', 'Best sources by registrations and paid plans.')}</p>
                                 </div>
                                 <div className="space-y-3">
                                     {(analytics?.top_utm_links || []).map((item) => (
@@ -1415,15 +1422,15 @@ export default function AdminDashboard() {
                                                 <span className="text-sm font-semibold text-white">₽ {Number(item.revenue_amount || 0).toLocaleString()}</span>
                                             </div>
                                             <div className="mt-3 flex flex-wrap gap-3 text-xs text-zinc-400">
-                                                <span>Регистрации: {item.registrations_count}</span>
-                                                <span>Покупатели: {item.buyers_count}</span>
-                                                <span>Покупки: {item.purchases_count}</span>
+                                                <span>{tx('Регистрации', 'Registrations')}: {item.registrations_count}</span>
+                                                <span>{tx('Покупатели', 'Buyers')}: {item.buyers_count}</span>
+                                                <span>{tx('Покупки', 'Purchases')}: {item.purchases_count}</span>
                                             </div>
                                         </div>
                                     ))}
                                     {!(analytics?.top_utm_links || []).length && (
                                         <div className="rounded-[1.15rem] border border-dashed border-white/10 bg-white/[0.02] px-4 py-8 text-center text-sm text-zinc-500">
-                                            Активности по UTM пока нет.
+                                            {tx('Активности по UTM пока нет.', 'No UTM activity yet.')}
                                         </div>
                                     )}
                                 </div>
@@ -1439,10 +1446,10 @@ export default function AdminDashboard() {
                         <div className="rounded-2xl border border-zinc-800/60 bg-zinc-900/40 p-6">
                             <div className="mb-4 flex items-center justify-between gap-3">
                                 <div>
-                                    <h2 className="font-semibold text-white">Очередь модерации</h2>
-                                    <p className="mt-1 text-xs text-zinc-500">Профили, которые ещё требуют правок от пользователя.</p>
+                                    <h2 className="font-semibold text-white">{tx('Очередь модерации', 'Moderation queue')}</h2>
+                                    <p className="mt-1 text-xs text-zinc-500">{tx('Профили, которые ещё требуют правок от пользователя.', 'Profiles that still need user changes.')}</p>
                                 </div>
-                                <div className="rounded-full border border-white/8 bg-white/[0.03] px-3 py-1 text-[11px] text-zinc-400">{moderationUsers.length} в очереди</div>
+                                <div className="rounded-full border border-white/8 bg-white/[0.03] px-3 py-1 text-[11px] text-zinc-400">{moderationUsers.length} {tx('в очереди', 'in queue')}</div>
                             </div>
                             <div className="grid gap-3 md:grid-cols-2">
                                 {moderationUsers.slice(0, 8).map((u) => (
@@ -1457,13 +1464,13 @@ export default function AdminDashboard() {
                                         <div className="min-w-0">
                                             <div className="truncate text-sm font-semibold text-white">{u.display_name || u.email}</div>
                                             <div className="truncate text-xs text-zinc-500">{u.email}</div>
-                                            <div className="mt-2 line-clamp-2 text-xs text-red-300">{u.moderation_notice || 'Профиль требует модерации'}</div>
+                                            <div className="mt-2 line-clamp-2 text-xs text-red-300">{u.moderation_notice || tx('Профиль требует модерации', 'Profile needs moderation')}</div>
                                         </div>
                                     </button>
                                 ))}
                                 {moderationUsers.length === 0 && (
                                     <div className="rounded-[1.15rem] border border-dashed border-white/10 bg-white/[0.02] px-4 py-8 text-center text-sm text-zinc-500 md:col-span-2">
-                                        Очередь пуста.
+                                        {tx('Очередь пуста.', 'Queue is empty.')}
                                     </div>
                                 )}
                             </div>
@@ -1471,18 +1478,18 @@ export default function AdminDashboard() {
 
                         <div className="rounded-2xl border border-zinc-800/60 bg-zinc-900/40 overflow-hidden">
                         <div className="p-5 border-b border-zinc-800/60 flex flex-wrap justify-between items-center gap-3 bg-zinc-900/80">
-                            <h2 className="font-semibold text-white">Пользователи <span className="text-zinc-500 font-normal text-sm">({filteredUsers.length})</span></h2>
+                            <h2 className="font-semibold text-white">{tx('Пользователи', 'Users')} <span className="text-zinc-500 font-normal text-sm">({filteredUsers.length})</span></h2>
                             <div className="flex flex-wrap items-center gap-2">
                                 <button
                                     type="button"
                                     onClick={() => setShowOnlyModerationQueue((prev) => !prev)}
                                     className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${showOnlyModerationQueue ? 'border-red-500/20 bg-red-500/10 text-red-300' : 'border-white/10 bg-white/[0.04] text-zinc-300 hover:text-white'}`}
                                 >
-                                    {showOnlyModerationQueue ? 'Показывается только модерация' : 'Только модерация'}
+                                    {showOnlyModerationQueue ? tx('Показывается только модерация', 'Showing moderation only') : tx('Только модерация', 'Moderation only')}
                                 </button>
                                 <div className="relative">
                                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-                                    <input type="text" placeholder="Поиск по email..." value={userSearch} onChange={e => setUserSearch(e.target.value)}
+                                    <input type="text" placeholder={tx('Поиск по email...', 'Search by email...')} value={userSearch} onChange={e => setUserSearch(e.target.value)}
                                         className="bg-zinc-950 border border-zinc-800 rounded-lg pl-9 pr-4 py-1.5 text-sm outline-none text-white focus:border-violet-500/50" />
                                 </div>
                             </div>
@@ -1493,9 +1500,9 @@ export default function AdminDashboard() {
                                     <tr>
                                         <th className="px-6 py-4 font-medium">ID</th>
                                         <th className="px-6 py-4 font-medium">Email</th>
-                                        <th className="px-6 py-4 font-medium">Роль</th>
-                                        <th className="px-6 py-4 font-medium">Баланс</th>
-                                        <th className="px-6 py-4 font-medium text-right">Действия</th>
+                                        <th className="px-6 py-4 font-medium">{tx('Роль', 'Role')}</th>
+                                        <th className="px-6 py-4 font-medium">{tx('Баланс', 'Balance')}</th>
+                                        <th className="px-6 py-4 font-medium text-right">{tx('Действия', 'Actions')}</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-zinc-800/60 text-zinc-300">
@@ -1519,7 +1526,7 @@ export default function AdminDashboard() {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <span className={`px-2 py-1 rounded text-xs font-medium ${u.is_superuser ? 'bg-violet-500/20 text-violet-400' : 'bg-zinc-800 text-zinc-400'}`}>
-                                                    {u.is_superuser ? 'Админ' : 'Пользователь'}
+                                                    {u.is_superuser ? tx('Админ', 'Admin') : tx('Пользователь', 'User')}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 font-semibold text-amber-400">{u.balance} 🪙</td>
@@ -1545,7 +1552,7 @@ export default function AdminDashboard() {
                                                                     className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors text-left"
                                                                 >
                                                                     <FileText className="w-4 h-4 text-cyan-400" />
-                                                                    Открыть профиль
+                                                                    {tx('Открыть профиль', 'Open profile')}
                                                                 </button>
                                                                 <div className="h-px bg-zinc-800" />
                                                                 <button
@@ -1553,7 +1560,7 @@ export default function AdminDashboard() {
                                                                     className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors text-left"
                                                                 >
                                                                     <Coins className="w-4 h-4 text-amber-400" />
-                                                                    Изменить баланс
+                                                                    {tx('Изменить баланс', 'Adjust balance')}
                                                                 </button>
                                                                 <div className="h-px bg-zinc-800" />
                                                                 <button
@@ -1561,7 +1568,7 @@ export default function AdminDashboard() {
                                                                     className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-red-400 hover:bg-red-500/10 transition-colors text-left"
                                                                 >
                                                                     <Trash2 className="w-4 h-4" />
-                                                                    Удалить пользователя
+                                                                    {tx('Удалить пользователя', 'Delete user')}
                                                                 </button>
                                                             </motion.div>
                                                         )}
@@ -1571,7 +1578,7 @@ export default function AdminDashboard() {
                                         </tr>
                                     ))}
                                     {filteredUsers.length === 0 && (
-                                        <tr><td colSpan={5} className="text-center py-10 text-zinc-500">Пользователи не найдены.</td></tr>
+                                        <tr><td colSpan={5} className="text-center py-10 text-zinc-500">{tx('Пользователи не найдены.', 'No users found.')}</td></tr>
                                     )}
                                 </tbody>
                             </table>
@@ -1587,10 +1594,10 @@ export default function AdminDashboard() {
                         <div className="rounded-2xl border border-zinc-800/60 bg-zinc-900/40 p-6">
                             <div className="mb-4 flex items-center justify-between gap-3">
                                 <div>
-                                    <h2 className="font-semibold text-white">Профили, ожидающие модерации</h2>
-                                    <p className="mt-1 text-xs text-zinc-500">Откройте профиль, удалите плохой аватар или ник и отправьте точное предупреждение, которое увидит пользователь.</p>
+                                    <h2 className="font-semibold text-white">{tx('Профили, ожидающие модерации', 'Profiles awaiting moderation')}</h2>
+                                    <p className="mt-1 text-xs text-zinc-500">{tx('Откройте профиль, удалите плохой аватар или ник и отправьте точное предупреждение, которое увидит пользователь.', 'Open the profile, remove an unsuitable avatar or name, and send the exact warning the user will see.')}</p>
                                 </div>
-                                <div className="rounded-full border border-white/8 bg-white/[0.03] px-3 py-1 text-[11px] text-zinc-400">{moderationUsers.length} профилей</div>
+                                <div className="rounded-full border border-white/8 bg-white/[0.03] px-3 py-1 text-[11px] text-zinc-400">{moderationUsers.length} {tx('профилей', 'profiles')}</div>
                             </div>
                             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                                 {moderationUsers.map((u) => (
@@ -1608,18 +1615,18 @@ export default function AdminDashboard() {
                                             </div>
                                         )}
                                         <div className="min-w-0">
-                                            <div className="truncate text-sm font-semibold text-white">{u.display_name || 'Ник ещё не задан'}</div>
+                                            <div className="truncate text-sm font-semibold text-white">{u.display_name || tx('Ник ещё не задан', 'No display name yet')}</div>
                                             <div className="truncate text-xs text-zinc-500">{u.email}</div>
-                                            <div className="mt-2 line-clamp-3 text-xs text-red-300">{u.moderation_notice || 'Профиль требует модерации'}</div>
+                                            <div className="mt-2 line-clamp-3 text-xs text-red-300">{u.moderation_notice || tx('Профиль требует модерации', 'Profile needs moderation')}</div>
                                             <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-300">
-                                                Открыть профиль
+                                                {tx('Открыть профиль', 'Open profile')}
                                             </div>
                                         </div>
                                     </button>
                                 ))}
                                 {moderationUsers.length === 0 && (
                                     <div className="rounded-[1.15rem] border border-dashed border-white/10 bg-white/[0.02] px-4 py-10 text-center text-sm text-zinc-500 xl:col-span-3">
-                                        Очередь пуста.
+                                        {tx('Очередь пуста.', 'Queue is empty.')}
                                     </div>
                                 )}
                             </div>
@@ -1773,7 +1780,7 @@ export default function AdminDashboard() {
                                             type="text"
                                             value={newFeaturedAudio.model}
                                             onChange={(e) => setNewFeaturedAudio({ ...newFeaturedAudio, model: e.target.value })}
-                                            placeholder="suno/V5"
+                                            placeholder="suno/V6"
                                             className="bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-sm outline-none text-white focus:border-violet-500/50"
                                         />
                                     </label>

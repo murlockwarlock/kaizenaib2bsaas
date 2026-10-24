@@ -46,8 +46,8 @@ const IMAGE_DROPDOWN_PRIORITY = ['google/nano-banana', 'google/nano-banana-edit'
 const VIDEO_DROPDOWN_PRIORITY = ['kling-2.6/text-to-video', 'kling-2.6/image-to-video', 'kling-3/motion-control', 'kling/ai-avatar-pro', 'kling/ai-avatar-standard'];
 
 const AUDIO_MODELS = [
-  { id: 'suno/V5', href: '/audio?model=suno%2FV5', chips: { ru: ['Музыка', 'Suno', 'Финал'], en: ['Music', 'Suno', 'Final'] } },
-  { id: 'suno/V4_5PLUS', href: '/audio?model=suno%2FV4_5PLUS', chips: { ru: ['Музыка', 'Suno', 'Быстро'], en: ['Music', 'Suno', 'Fast'] } },
+  { id: 'suno/V6', href: '/audio?model=suno%2FV6', chips: { ru: ['Музыка', 'Suno', 'Финал'], en: ['Music', 'Suno', 'Final'] } },
+  { id: 'suno/V6_MINI', href: '/audio?model=suno%2FV6_MINI', chips: { ru: ['Музыка', 'Suno', 'Быстро'], en: ['Music', 'Suno', 'Fast'] } },
   { id: 'elevenlabs/text-to-speech-turbo-2-5', href: '/audio?model=elevenlabs%2Ftext-to-speech-turbo-2-5', chips: { ru: ['Голос', 'TTS', 'Turbo'], en: ['Voice', 'TTS', 'Turbo'] } },
   { id: 'elevenlabs/text-to-dialogue-v3', href: '/audio?model=elevenlabs%2Ftext-to-dialogue-v3', chips: { ru: ['Голос', 'Диалог', 'Scene'], en: ['Voice', 'Dialogue', 'Scene'] } },
 ] as const;
