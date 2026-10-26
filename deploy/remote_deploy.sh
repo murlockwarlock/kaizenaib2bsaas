@@ -418,6 +418,33 @@ if [[ -e "$WEATHER_UNIT_PATH" || -L "$WEATHER_UNIT_PATH" ]]; then
     [[ "$(readlink "$WEATHER_UNIT_PATH")" == "/dev/null" ]]
 fi
 
+prune_old_releases() {
+    local current_release
+    local release
+    local kept_previous=0
+    local -a release_paths=()
+
+    current_release=$(readlink -f "$CURRENT_LINK" 2>/dev/null || true)
+    mapfile -t release_paths < <(
+        find "$APP_DIR/releases" -mindepth 1 -maxdepth 1 -type d -printf '%T@ %p\n' |
+            sort -nr |
+            cut -d' ' -f2-
+    )
+
+    for release in "${release_paths[@]}"; do
+        if [[ "$release" == "$current_release" ]]; then
+            continue
+        fi
+        if (( kept_previous == 0 )); then
+            kept_previous=1
+            continue
+        fi
+        rm -rf -- "$release"
+    done
+}
+
+prune_old_releases
+
 printf 'revision=%s\n' "$EXPECTED_REVISION"
 printf 'backend=active\n'
 printf 'worker=active\n'
