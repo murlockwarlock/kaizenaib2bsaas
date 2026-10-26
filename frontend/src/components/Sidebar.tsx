@@ -67,7 +67,7 @@ export default function Sidebar({
     const isAdminRoute = pathname.includes('/admin');
 
     useEffect(() => {
-        const media = window.matchMedia('(min-width: 1024px)');
+        const media = window.matchMedia('(min-width: 1280px)');
         const syncViewport = () => setIsDesktopViewport(media.matches);
         syncViewport();
         if (typeof media.addEventListener === 'function') {
@@ -106,8 +106,8 @@ export default function Sidebar({
 
     const desktopHeader = () => (
         <header className="panel-surface sticky top-4 z-30 mx-6 mt-4 rounded-[2rem] px-5 py-3">
-            <div className="flex items-center justify-between gap-4">
-                <Link href="/" className="flex items-center gap-3">
+            <div className="flex min-w-0 items-center justify-between gap-4">
+                <Link href="/" className="flex shrink-0 items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[linear-gradient(145deg,#ff6b4a,#22c7b8)] shadow-[0_16px_40px_rgba(255,107,74,0.22)]">
                         <KaizenMark className="h-5 w-5 text-white" />
                     </div>
@@ -125,7 +125,7 @@ export default function Sidebar({
                     />
                 ) : <div className="flex-1" />}
 
-                <div className="flex items-center gap-3">
+                <div className="flex shrink-0 items-center gap-3">
                     {user ? <NotificationBell mode="desktop" /> : null}
 
                     <div className="flex items-center overflow-hidden rounded-xl border border-white/8 bg-white/[0.04]">
@@ -344,10 +344,10 @@ export default function Sidebar({
 
             {!isHomeRoute && (
                 <>
-                    <div className="hidden lg:block">
+                    <div className="hidden xl:block">
                         {desktopHeader()}
                     </div>
-                    <div className="lg:hidden">
+                    <div className="xl:hidden">
                         {mobileHeader()}
                     </div>
                 </>

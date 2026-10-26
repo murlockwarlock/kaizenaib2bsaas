@@ -58,7 +58,7 @@ export function buildDesktopTopNavData(locale: SupportedLocale) {
       : [
           { id: 'suno-v6', title: 'Suno V6', description: 'Current starting point for tracks, demos and music concepts.', href: '/audio?model=suno%2FV6', image: null },
           { id: 'suno-v6-mini', title: 'Suno V6 Mini', description: 'A lighter mode for fast music iteration.', href: '/audio?model=suno%2FV6_MINI', image: null },
-          { id: 'el-tts', title: 'ElevenLabs Turbo', description: 'Voice-over, narration and polished spoken audio.', href: '/audio?model=elevenlabs%2Ftext-to-speech-turbo-2-5', image: null },
+          { id: 'el-tts', title: 'ElevenLabs Turbo', description: 'Voice-over, narration and clear spoken audio.', href: '/audio?model=elevenlabs%2Ftext-to-speech-turbo-2-5', image: null },
           { id: 'el-dialogue', title: 'ElevenLabs Dialogue', description: 'Dialogue scenes with multiple voices.', href: '/audio?model=elevenlabs%2Ftext-to-dialogue-v3', image: null },
         ];
 

@@ -17,7 +17,7 @@ export const VIDEO_SHOWCASE_EXAMPLES: VideoShowcaseExample[] = [
     videoSrc: localExample('/examples/Bytedance Seedance 1.5 Pro/example.mp4'),
     title: { ru: 'Bytedance Seedance 1.5 Pro', en: 'Bytedance Seedance 1.5 Pro' },
     description: {
-      ru: 'Универсальный cinematic-кейс для коротких рекламных и fashion-сцен.',
+      ru: 'Универсальный кинематографичный пример для коротких рекламных и fashion-сцен.',
       en: 'A flexible cinematic case for short commercial and fashion scenes.',
     },
     prompt: {
@@ -25,7 +25,7 @@ export const VIDEO_SHOWCASE_EXAMPLES: VideoShowcaseExample[] = [
       en: 'A stylish product-commercial scene: a young woman in a red coat walks through a glossy neon-lit city street, strong reflections, elegant body motion, confident expression, smooth cinematic camera movement, premium advertising look, realistic detail.',
     },
     chips: {
-      ru: ['Bytedance', '8-10 сек', 'Cinematic ad'],
+      ru: ['Bytedance', '8–10 сек', 'Рекламная сцена'],
       en: ['Bytedance', '8-10 sec', 'Cinematic ad'],
     },
   },
@@ -35,7 +35,7 @@ export const VIDEO_SHOWCASE_EXAMPLES: VideoShowcaseExample[] = [
     videoSrc: localExample('/examples/Hailuo 02 Text Pro/example.mp4'),
     title: { ru: 'Hailuo 02 Text Pro', en: 'Hailuo 02 Text Pro' },
     description: {
-      ru: 'Чистый пример короткой Hailuo-сцены с аккуратным движением и polished look.',
+      ru: 'Короткая Hailuo-сцена с аккуратным движением и выверенным визуальным стилем.',
       en: 'A clean Hailuo short-form scene with polished motion and a refined look.',
     },
     prompt: {
@@ -43,7 +43,7 @@ export const VIDEO_SHOWCASE_EXAMPLES: VideoShowcaseExample[] = [
       en: 'A polished commercial shot of a fashion model walking through a modern architectural space, elegant body movement, soft directional light, controlled camera glide, luxury mood, realistic motion, high detail.',
     },
     chips: {
-      ru: ['Hailuo', 'Text-to-video', 'Polished motion'],
+      ru: ['Hailuo', 'Текст → видео', 'Аккуратное движение'],
       en: ['Hailuo', 'Text-to-video', 'Polished motion'],
     },
   },
@@ -61,7 +61,7 @@ export const VIDEO_SHOWCASE_EXAMPLES: VideoShowcaseExample[] = [
       en: 'A clean cinematic street scene at sunset, a woman in a beige coat walks toward camera, soft wind, premium fashion mood, controlled motion, elegant lighting, realistic detail.',
     },
     chips: {
-      ru: ['Hailuo', '6 сек', 'Quick test'],
+      ru: ['Hailuo', '6 сек', 'Быстрый тест'],
       en: ['Hailuo', '6 sec', 'Quick test'],
     },
   },
@@ -71,7 +71,7 @@ export const VIDEO_SHOWCASE_EXAMPLES: VideoShowcaseExample[] = [
     videoSrc: localExample('/examples/Kling2.6 Text to video/example.mp4'),
     title: { ru: 'Kling 2.6 Text', en: 'Kling 2.6 Text' },
     description: {
-      ru: 'Классический Kling-кейс для динамичной текстовой сцены с уверенной камерой.',
+      ru: 'Пример Kling для динамичной текстовой сцены с управляемым движением камеры.',
       en: 'A classic Kling text-to-video case with dynamic scene direction and confident camera work.',
     },
     prompt: {
@@ -79,7 +79,7 @@ export const VIDEO_SHOWCASE_EXAMPLES: VideoShowcaseExample[] = [
       en: 'A cinematic medium shot of a woman in a red trench coat walking through a rainy neon street at night, strong reflections in puddles, soft wind moving her hair and coat, subtle head turn toward camera, slow dolly-in, shallow depth of field, realistic motion, film lighting, highly detailed.',
     },
     chips: {
-      ru: ['Kling', 'Text-to-video', '5-10 сек'],
+      ru: ['Kling', 'Текст → видео', '5–10 сек'],
       en: ['Kling', 'Text-to-video', '5-10 sec'],
     },
   },
@@ -97,7 +97,7 @@ export const VIDEO_SHOWCASE_EXAMPLES: VideoShowcaseExample[] = [
       en: 'Preserve the uploaded image identity and composition. The subject slowly steps forward, hair and clothing move in the wind, subtle blinking, slight head turn, slow cinematic camera push-in, realistic motion, stable face, clean hands, high detail.',
     },
     chips: {
-      ru: ['Kling', 'Image-to-video', 'Stable face'],
+      ru: ['Kling', 'Изображение → видео', 'Стабильное лицо'],
       en: ['Kling', 'Image-to-video', 'Stable face'],
     },
   },
@@ -107,7 +107,7 @@ export const VIDEO_SHOWCASE_EXAMPLES: VideoShowcaseExample[] = [
     videoSrc: localExample('/examples/klingv2-5-turbo-text-to-video-pro/example.mp4'),
     title: { ru: 'Kling V2.5 Turbo Pro', en: 'Kling V2.5 Turbo Pro' },
     description: {
-      ru: 'Быстрый Kling-режим для энергичной текстовой сцены и понятного результата.',
+      ru: 'Быстрый режим Kling для энергичной сцены по текстовому описанию.',
       en: 'A fast Kling mode for energetic text-driven scenes and dependable output.',
     },
     prompt: {
@@ -115,7 +115,7 @@ export const VIDEO_SHOWCASE_EXAMPLES: VideoShowcaseExample[] = [
       en: 'A fast cinematic scene of a stylish woman crossing a wet city street at night, neon reflections, dramatic backlight, confident walk, realistic motion, crisp details, premium fashion mood.',
     },
     chips: {
-      ru: ['Kling', 'Turbo', 'Fast cinematic'],
+      ru: ['Kling', 'Turbo', 'Быстрая сцена'],
       en: ['Kling', 'Turbo', 'Fast cinematic'],
     },
   },
@@ -125,7 +125,7 @@ export const VIDEO_SHOWCASE_EXAMPLES: VideoShowcaseExample[] = [
     videoSrc: localExample('/examples/klingai-avatar-standard/example.mp4'),
     title: { ru: 'Kling AI Avatar Standard', en: 'Kling AI Avatar Standard' },
     description: {
-      ru: 'Talking-avatar пример: фото плюс аудио с естественной мимикой.',
+      ru: 'Говорящий аватар: фото и аудио с естественной мимикой.',
       en: 'A talking-avatar example using an image plus audio with natural facial motion.',
     },
     prompt: {
@@ -133,7 +133,7 @@ export const VIDEO_SHOWCASE_EXAMPLES: VideoShowcaseExample[] = [
       en: 'Natural talking portrait, realistic lip sync, subtle blinking, gentle head movement, calm confident expression, soft studio lighting, stable identity, clean skin detail, believable human motion.',
     },
     chips: {
-      ru: ['Avatar', 'Фото + аудио', 'Lip sync'],
+      ru: ['Аватар', 'Фото + аудио', 'Синхронизация речи'],
       en: ['Avatar', 'Image + audio', 'Lip sync'],
     },
   },
@@ -143,7 +143,7 @@ export const VIDEO_SHOWCASE_EXAMPLES: VideoShowcaseExample[] = [
     videoSrc: localExample('/examples/klingai-avatar-pro/example.mp4'),
     title: { ru: 'Kling AI Avatar Pro', en: 'Kling AI Avatar Pro' },
     description: {
-      ru: 'Более сильный talking-avatar кейс для студийного speaking portrait.',
+      ru: 'Говорящий аватар для студийного портрета с озвучкой.',
       en: 'A stronger talking-avatar case for studio-style speaking portraits.',
     },
     prompt: {
@@ -151,7 +151,7 @@ export const VIDEO_SHOWCASE_EXAMPLES: VideoShowcaseExample[] = [
       en: 'Natural talking portrait, realistic lip sync, subtle blinking, soft head movement, calm confident expression, stable identity, clean facial detail, studio lighting, believable human motion.',
     },
     chips: {
-      ru: ['Avatar Pro', 'Speaking portrait', 'Studio light'],
+      ru: ['Аватар Pro', 'Говорящий портрет', 'Студийный свет'],
       en: ['Avatar Pro', 'Speaking portrait', 'Studio light'],
     },
   },
@@ -161,7 +161,7 @@ export const VIDEO_SHOWCASE_EXAMPLES: VideoShowcaseExample[] = [
     videoSrc: localExample('/examples/kling-3.0video/example.mp4'),
     title: { ru: 'Kling 3.0 Video', en: 'Kling 3.0 Video' },
     description: {
-      ru: 'Флагманский Kling-кейс для более режиссируемых и эффектных сцен.',
+      ru: 'Kling для сцен с точным управлением камерой и движением.',
       en: 'A flagship Kling case for more directed, high-impact scenes.',
     },
     prompt: {
@@ -169,7 +169,7 @@ export const VIDEO_SHOWCASE_EXAMPLES: VideoShowcaseExample[] = [
       en: 'A high-end cinematic scene with strong camera direction: a lone character crossing a futuristic street at night, holographic signs, drifting fog, passing lights, confident movement, dynamic but realistic camera motion, premium film look, dramatic lighting, crisp detail.',
     },
     chips: {
-      ru: ['Kling 3.0', 'Directed scene', 'Premium look'],
+      ru: ['Kling 3.0', 'Режиссируемая сцена', 'Качественный визуал'],
       en: ['Kling 3.0', 'Directed scene', 'Premium look'],
     },
   },
@@ -179,7 +179,7 @@ export const VIDEO_SHOWCASE_EXAMPLES: VideoShowcaseExample[] = [
     videoSrc: localExample('/examples/Wan 2.6 Text/example.mp4'),
     title: { ru: 'Wan 2.6 Text', en: 'Wan 2.6 Text' },
     description: {
-      ru: 'Реалистичный Wan-кейс для спокойной короткой сцены с натуральной атмосферой.',
+      ru: 'Пример Wan для спокойной короткой сцены с естественным движением.',
       en: 'A realistic Wan case for a calmer short-form scene with natural atmosphere.',
     },
     prompt: {
@@ -187,7 +187,7 @@ export const VIDEO_SHOWCASE_EXAMPLES: VideoShowcaseExample[] = [
       en: 'A realistic documentary-style shot of a fisherman standing on a foggy lake at sunrise, soft wind on the water, subtle body motion, slow camera drift, natural lighting, high realism, calm atmosphere, highly detailed.',
     },
     chips: {
-      ru: ['Wan', 'Realism', 'Natural scene'],
+      ru: ['Wan', 'Реализм', 'Естественная сцена'],
       en: ['Wan', 'Realism', 'Natural scene'],
     },
   },

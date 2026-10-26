@@ -26,7 +26,7 @@ const MODEL_GUIDES: Record<string, LocalizedModelGuide> = {
     ru: {
       title: 'Flux Pro',
       summary: 'Премиальная text-to-image модель для аккуратного коммерческого визуала.',
-      bestFor: 'Hero-кадры, продуктовые сцены, реклама, дорогие рендеры.',
+      bestFor: 'Ключевые кадры, продуктовые сцены, реклама, детальные рендеры.',
       workflow: 'Лучше всего работает, когда в промпте чётко описаны сцена, стиль и свет.',
     },
   },
@@ -152,7 +152,7 @@ const MODEL_GUIDES: Record<string, LocalizedModelGuide> = {
     ru: {
       title: 'Qwen Edit',
       summary: 'Практичная image-to-image модель для понятных изменений.',
-      bestFor: 'Простые трансформации, cleanup, быстрые креативные правки.',
+      bestFor: 'Простые трансформации, очистка и быстрые правки.',
       workflow: 'Загрузите исходник и опишите только желаемое изменение.',
     },
   },
@@ -208,7 +208,7 @@ const MODEL_GUIDES: Record<string, LocalizedModelGuide> = {
     ru: {
       title: 'Google Imagen 4',
       summary: 'Качественная универсальная модель с хорошим реализмом и деталями.',
-      bestFor: 'Реалистичные продукты, lifestyle-сцены, премиальный визуал.',
+      bestFor: 'Реалистичные продукты, повседневные сцены и рекламные изображения.',
       workflow: 'Лучше всего работает с чистым промптом: объект, окружение и свет.',
     },
   },
@@ -376,7 +376,7 @@ const MODEL_GUIDES: Record<string, LocalizedModelGuide> = {
     ru: {
       title: 'Kling V2.1 Pro',
       summary: 'Сильная видео-модель для кинематографичного движения и камеры.',
-      bestFor: 'Трейлерные кадры, кинематографичные сцены, polished motion.',
+      bestFor: 'Трейлерные кадры, кинематографичные сцены и выверенное движение.',
       workflow: 'В одном промпте лучше сразу описывать объект, движение, камеру и атмосферу.',
     },
   },
@@ -968,11 +968,47 @@ export function getModelDisplayName(model: string | null | undefined) {
 
 export function getModelGuide(model: string | null | undefined, locale: SupportedLocale) {
   const normalized = normalizeModelKey(model);
-  return MODEL_GUIDES[normalized]?.[locale] ?? {
+  if (MODEL_GUIDES[normalized]?.[locale]) return MODEL_GUIDES[normalized][locale];
+
+  const category = normalized.includes('suno') || normalized.includes('elevenlabs') ? 'audio'
+    : normalized.includes('video') || normalized.includes('kling') || normalized.includes('veo') || normalized.includes('wan') || normalized.includes('hailuo') || normalized.includes('seedance') || normalized.includes('runway') || normalized.includes('pixverse')
+      ? 'video'
+      : normalized.includes('image') || normalized.includes('flux') || normalized.includes('banana') || normalized.includes('seedream') || normalized.includes('ideogram') || normalized.includes('qwen')
+        ? 'image'
+        : null;
+
+  if (category === 'video') {
+    return {
+      title: getModelDisplayName(model),
+      summary: locale === 'ru' ? 'Модель для генерации коротких видео.' : 'Model for short-form video generation.',
+      bestFor: locale === 'ru' ? 'Сцены, клипы и тесты движения.' : 'Scenes, clips and motion tests.',
+      workflow: locale === 'ru' ? 'Опишите сцену, укажите движение и проверьте доступные параметры.' : 'Describe the scene, specify the motion and review the available options.',
+    };
+  }
+
+  if (category === 'image') {
+    return {
+      title: getModelDisplayName(model),
+      summary: locale === 'ru' ? 'Модель для создания или редактирования изображений.' : 'Model for creating or editing images.',
+      bestFor: locale === 'ru' ? 'Иллюстрации, дизайн и правки по референсу.' : 'Illustrations, design and reference-based edits.',
+      workflow: locale === 'ru' ? 'Опишите задачу и добавьте референс, если нужно сохранить композицию или персонажа.' : 'Describe the task and add a reference when composition or character consistency matters.',
+    };
+  }
+
+  if (category === 'audio') {
+    return {
+      title: getModelDisplayName(model),
+      summary: locale === 'ru' ? 'Модель для музыки, голоса или звуковых сцен.' : 'Model for music, voice or sound scenes.',
+      bestFor: locale === 'ru' ? 'Треки, озвучка и диалоги.' : 'Tracks, voice-over and dialogue.',
+      workflow: locale === 'ru' ? 'Укажите задачу, стиль и длительность, затем проверьте настройки модели.' : 'Describe the task, style and duration, then review the model settings.',
+    };
+  }
+
+  return {
     title: getModelDisplayName(model),
-    summary: locale === 'ru' ? 'Универсальная модель для базовых сценариев генерации.' : 'General-purpose model for common generation workflows.',
-    bestFor: locale === 'ru' ? 'Повседневные задачи и быстрые итерации.' : 'Everyday tasks and quick iterations.',
-    workflow: locale === 'ru' ? 'Начните с простого промпта и постепенно добавляйте детали.' : 'Start with a simple prompt and add detail step by step.',
+    summary: locale === 'ru' ? 'Модель для генерации контента.' : 'Model for content generation.',
+    bestFor: locale === 'ru' ? 'Быстрые черновики и рабочие варианты.' : 'Quick drafts and working versions.',
+    workflow: locale === 'ru' ? 'Опишите задачу и выберите доступные параметры.' : 'Describe the task and choose the available options.',
   };
 }
 

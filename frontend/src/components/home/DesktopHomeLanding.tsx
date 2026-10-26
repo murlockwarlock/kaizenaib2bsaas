@@ -142,8 +142,8 @@ const COPY = {
       video: 'Видео',
       audio: 'Музыка',
       explore: 'Обзор',
-      tools: 'ИИ эффекты',
-      pricing: 'Цены',
+      tools: 'Эффекты',
+      pricing: 'Тарифы',
       start: 'начать',
       login: 'Войти',
       dashboard: 'кабинет',
@@ -154,7 +154,7 @@ const COPY = {
       titlePrefix: 'Создавай',
       titleSuffix: 'с ИИ',
       rotatingTexts: ['визуал', 'музыку', 'голос', 'видео', 'картинки'],
-      description: 'Более 50 нейросетей в одном месте. Просто опишите, что хотите, и получите результат за секунды.',
+      description: 'Более 50 моделей для изображений, видео и звука. Выберите режим, задайте параметры и получите результат в одном рабочем месте.',
       primary: 'Начать бесплатно',
       secondary: 'Смотреть тарифы',
       stats: [
@@ -175,12 +175,12 @@ const COPY = {
     sections: {
       images: {
         title: 'Картинки и дизайн',
-        description: 'Создавайте иллюстрации, рекламные креативы, портреты и визуалы для любого проекта.',
+        description: 'Иллюстрации, рекламные материалы, портреты и изображения для конкретных задач.',
         cta: 'Все модели для изображений',
       },
       video: {
         title: 'Видео и анимация',
-        description: 'Запускайте ролики из текста, оживляйте изображения и собирайте сцены для соцсетей и рекламы.',
+        description: 'Ролики из текста, анимация изображений и готовые сцены для соцсетей и рекламы.',
         cta: 'Все модели для видео',
       },
       audio: {
@@ -190,7 +190,7 @@ const COPY = {
       },
       tools: {
         title: 'Быстрые инструменты',
-        description: 'Быстрые улучшения для готового контента: качество, фон, цвет, ретушь и другие полезные режимы.',
+        description: 'Улучшение качества, удаление фона, ретушь и другие отдельные операции.',
         cta: 'Открыть каталог',
       },
     },
@@ -203,8 +203,8 @@ const COPY = {
       video: 'Video',
       audio: 'Audio',
       explore: 'Explore',
-      tools: 'AI Tools',
-      pricing: 'Pricing',
+      tools: 'Effects',
+      pricing: 'Plans',
       start: 'start',
       login: 'Login',
       dashboard: 'dashboard',
@@ -215,7 +215,7 @@ const COPY = {
       titlePrefix: 'Create',
       titleSuffix: 'with AI',
       rotatingTexts: ['visuals', 'music', 'voice', 'video', 'images'],
-      description: '50+ AI models in one place. Just describe what you want — get results in seconds. Free to start.',
+      description: '50+ models for images, video and audio. Choose a mode, set the parameters and get the result in one workspace.',
       primary: 'Start free',
       secondary: 'View pricing',
       stats: [
@@ -236,12 +236,12 @@ const COPY = {
     sections: {
       images: {
         title: 'Images & Design',
-        description: 'Create illustrations, ad creatives, portraits and polished visuals for any project.',
+        description: 'Illustrations, ad assets, portraits and images for specific tasks.',
         cta: 'All image models',
       },
       video: {
         title: 'Video & Animation',
-        description: 'Launch clips from text, animate images and build scenes for social content and ads.',
+        description: 'Clips from text, image animation and ready-made scenes for social content and ads.',
         cta: 'All video models',
       },
       audio: {
@@ -251,7 +251,7 @@ const COPY = {
       },
       tools: {
         title: 'Quick Tools',
-        description: 'Fast upgrades for finished content: quality, background cleanup, color, restoration and more.',
+        description: 'Upscaling, background removal, retouching and other focused operations.',
         cta: 'Open catalog',
       },
     },
@@ -350,7 +350,6 @@ export default function DesktopHomeLanding({
   const pathname = usePathname();
   const router = useRouter();
   const [isTouchDevice, setIsTouchDevice] = useState(false);
-  const [isCompactViewport, setIsCompactViewport] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
   const [showBannerModal, setShowBannerModal] = useState(false);
@@ -359,20 +358,15 @@ export default function DesktopHomeLanding({
 
   useEffect(() => {
     const pointerQuery = window.matchMedia('(pointer: coarse)');
-    const viewportQuery = window.matchMedia('(max-width: 1024px)');
-
     const syncFlags = () => {
       setIsTouchDevice(pointerQuery.matches);
-      setIsCompactViewport(viewportQuery.matches);
     };
 
     syncFlags();
     pointerQuery.addEventListener('change', syncFlags);
-    viewportQuery.addEventListener('change', syncFlags);
 
     return () => {
       pointerQuery.removeEventListener('change', syncFlags);
-      viewportQuery.removeEventListener('change', syncFlags);
     };
   }, []);
 

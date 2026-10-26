@@ -30,7 +30,7 @@ function DesktopHeaderDropdown({
     <div className="group relative" onMouseEnter={onOpen} onFocusCapture={onOpen}>
       <Link
         href={href}
-        className="inline-flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium text-zinc-300 transition-colors hover:bg-white/[0.05] hover:text-white"
+        className="inline-flex items-center gap-1 whitespace-nowrap rounded-full px-3 py-2 text-sm font-medium text-zinc-300 transition-colors hover:bg-white/[0.05] hover:text-white"
       >
         {label}
         <ChevronDown className="h-3.5 w-3.5 text-zinc-500 transition-transform group-hover:rotate-180" />
@@ -129,23 +129,23 @@ export default function DesktopTopNav({
   );
 
   return (
-    <nav className="flex items-center gap-0.5">
+    <nav className="flex min-w-0 flex-1 items-center justify-center gap-0.5 overflow-hidden">
       <Link
         href="/"
-        className={`rounded-full px-3 py-2 text-sm font-medium transition-colors ${isActive('/') ? 'bg-white/[0.08] text-white' : 'text-zinc-400 hover:bg-white/[0.05] hover:text-white'}`}
+        className={`whitespace-nowrap rounded-full px-3 py-2 text-sm font-medium transition-colors ${isActive('/') ? 'bg-white/[0.08] text-white' : 'text-zinc-400 hover:bg-white/[0.05] hover:text-white'}`}
       >
         {t('home')}
       </Link>
       <Link
         href="/explore"
-        className={`rounded-full px-3 py-2 text-sm font-medium transition-colors ${isActive('/explore') ? 'bg-white/[0.08] text-white' : 'text-zinc-400 hover:bg-white/[0.05] hover:text-white'}`}
+        className={`whitespace-nowrap rounded-full px-3 py-2 text-sm font-medium transition-colors ${isActive('/explore') ? 'bg-white/[0.08] text-white' : 'text-zinc-400 hover:bg-white/[0.05] hover:text-white'}`}
       >
         {t('explore')}
       </Link>
       <DesktopHeaderDropdown
         label={t('images')}
         title={supportedLocale === 'ru' ? 'Картинки и дизайн' : 'Images & Design'}
-        description={supportedLocale === 'ru' ? 'Популярные модели для генерации, редактирования и визуального продакшна.' : 'Popular models for generation, editing and polished visual work.'}
+        description={supportedLocale === 'ru' ? 'Модели для генерации, редактирования и визуальных задач.' : 'Models for generation, editing and visual work.'}
         href="/images"
         cards={imageDropdownCards}
         ctaLabel={supportedLocale === 'ru' ? 'Открыть раздел' : 'Open section'}
@@ -169,13 +169,13 @@ export default function DesktopTopNav({
       />
       <Link
         href="/catalog"
-        className={`rounded-full px-3 py-2 text-sm font-medium transition-colors ${isActive('/catalog') ? 'bg-white/[0.08] text-white' : 'text-zinc-400 hover:bg-white/[0.05] hover:text-white'}`}
+        className={`whitespace-nowrap rounded-full px-3 py-2 text-sm font-medium transition-colors ${isActive('/catalog') ? 'bg-white/[0.08] text-white' : 'text-zinc-400 hover:bg-white/[0.05] hover:text-white'}`}
       >
         {t('ai_effects')}
       </Link>
       <Link
         href="/pricing"
-        className={`rounded-full px-3 py-2 text-sm font-medium transition-colors ${isActive('/pricing') ? 'bg-white/[0.08] text-white' : 'text-zinc-400 hover:bg-white/[0.05] hover:text-white'}`}
+        className={`whitespace-nowrap rounded-full px-3 py-2 text-sm font-medium transition-colors ${isActive('/pricing') ? 'bg-white/[0.08] text-white' : 'text-zinc-400 hover:bg-white/[0.05] hover:text-white'}`}
       >
         {t('pricing')}
       </Link>
@@ -183,13 +183,13 @@ export default function DesktopTopNav({
         <>
           <Link
             href="/my-creations"
-            className={`rounded-full px-3 py-2 text-sm font-medium transition-colors ${isActive('/my-creations') ? 'bg-white/[0.08] text-white' : 'text-zinc-400 hover:bg-white/[0.05] hover:text-white'}`}
+            className={`whitespace-nowrap rounded-full px-3 py-2 text-sm font-medium transition-colors ${isActive('/my-creations') ? 'bg-white/[0.08] text-white' : 'text-zinc-400 hover:bg-white/[0.05] hover:text-white'}`}
           >
             {t('my_creations')}
           </Link>
           <Link
             href="/my-likes"
-            className={`rounded-full px-3 py-2 text-sm font-medium transition-colors ${isActive('/my-likes') ? 'bg-white/[0.08] text-white' : 'text-zinc-400 hover:bg-white/[0.05] hover:text-white'}`}
+            className={`whitespace-nowrap rounded-full px-3 py-2 text-sm font-medium transition-colors ${isActive('/my-likes') ? 'bg-white/[0.08] text-white' : 'text-zinc-400 hover:bg-white/[0.05] hover:text-white'}`}
           >
             {t('my_likes')}
           </Link>

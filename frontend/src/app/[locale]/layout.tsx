@@ -28,8 +28,8 @@ export function generateStaticParams() {
 }
 
 export const metadata = {
-  title: "KaizenAI — Create Stunning AI Visual Content",
-  description: "Professional-grade AI tools for video, audio, and image generation. Create stunning visual content with the power of AI.",
+  title: "KaizenAI — Video, music and images",
+  description: "Choose a model, set the parameters and create images, video or audio in one workspace.",
 };
 import Script from 'next/script';
 
