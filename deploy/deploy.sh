@@ -21,6 +21,20 @@ fi
 : "${DEPLOY_CERTBOT_EMAIL:?DEPLOY_CERTBOT_EMAIL is required}"
 : "${DEPLOY_APP_DIR:?DEPLOY_APP_DIR is required}"
 
+DEPLOY_SMTP_EMAIL=${DEPLOY_SMTP_EMAIL:-}
+DEPLOY_SMTP_PASSWORD=${DEPLOY_SMTP_PASSWORD:-}
+DEPLOY_SMTP_HOST=${DEPLOY_SMTP_HOST:-smtp.gmail.com}
+DEPLOY_SMTP_PORT=${DEPLOY_SMTP_PORT:-465}
+DEPLOY_SMTP_USE_SSL=${DEPLOY_SMTP_USE_SSL:-true}
+DEPLOY_SMTP_FROM_NAME=${DEPLOY_SMTP_FROM_NAME:-KaizenAI}
+
+if [[ -n "$DEPLOY_SMTP_EMAIL" || -n "$DEPLOY_SMTP_PASSWORD" ]]; then
+    if [[ -z "$DEPLOY_SMTP_EMAIL" || -z "$DEPLOY_SMTP_PASSWORD" ]]; then
+        printf 'DEPLOY_SMTP_EMAIL and DEPLOY_SMTP_PASSWORD must be set together\n' >&2
+        exit 1
+    fi
+fi
+
 if [[ ! -r "$DEPLOY_KEY" ]]; then
     printf 'SSH key is not readable: %s\n' "$DEPLOY_KEY" >&2
     exit 1
@@ -35,10 +49,25 @@ REVISION=$(git -C "$ROOT_DIR" rev-parse --verify HEAD)
 TEMP_DIR=$(mktemp -d)
 REMOTE_BUNDLE="/tmp/kaizenai-$REVISION.tar.gz"
 REMOTE_SCRIPT="/tmp/kaizenai-deploy-$REVISION.sh"
+REMOTE_SMTP_ENV="/tmp/kaizenai-smtp-$REVISION.env"
+TEMP_SMTP_ENV=""
+
+if [[ -n "$DEPLOY_SMTP_EMAIL" ]]; then
+    TEMP_SMTP_ENV="$TEMP_DIR/smtp.env"
+    umask 077
+    {
+        printf 'SMTP_EMAIL=%s\n' "$DEPLOY_SMTP_EMAIL"
+        printf 'SMTP_PASSWORD=%s\n' "$DEPLOY_SMTP_PASSWORD"
+        printf 'SMTP_HOST=%s\n' "$DEPLOY_SMTP_HOST"
+        printf 'SMTP_PORT=%s\n' "$DEPLOY_SMTP_PORT"
+        printf 'SMTP_USE_SSL=%s\n' "$DEPLOY_SMTP_USE_SSL"
+        printf 'SMTP_FROM_NAME=%s\n' "$DEPLOY_SMTP_FROM_NAME"
+    } >"$TEMP_SMTP_ENV"
+fi
 
 cleanup() {
     rm -rf "$TEMP_DIR"
-    ssh -i "$DEPLOY_KEY" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" rm -f "$REMOTE_BUNDLE" "$REMOTE_SCRIPT" >/dev/null 2>&1 || true
+    ssh -i "$DEPLOY_KEY" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" rm -f "$REMOTE_BUNDLE" "$REMOTE_SCRIPT" "$REMOTE_SMTP_ENV" >/dev/null 2>&1 || true
 }
 
 trap cleanup EXIT
@@ -56,4 +85,11 @@ SCP_OPTIONS=(-i "$DEPLOY_KEY" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHo
 
 scp "${SCP_OPTIONS[@]}" "$ROOT_DIR/deploy/remote_deploy.sh" "$DEPLOY_USER@$DEPLOY_HOST:$REMOTE_SCRIPT"
 scp "${SCP_OPTIONS[@]}" "$TEMP_DIR/bundle.tar.gz" "$DEPLOY_USER@$DEPLOY_HOST:$REMOTE_BUNDLE"
-ssh "${SSH_OPTIONS[@]}" "$DEPLOY_USER@$DEPLOY_HOST" bash "$REMOTE_SCRIPT" "$REMOTE_BUNDLE" "$REVISION" "$BUNDLE_SHA" "$DEPLOY_APP_DIR" "$DEPLOY_DOMAIN" "$DEPLOY_CERTBOT_EMAIL"
+if [[ -n "$TEMP_SMTP_ENV" ]]; then
+    scp "${SCP_OPTIONS[@]}" "$TEMP_SMTP_ENV" "$DEPLOY_USER@$DEPLOY_HOST:$REMOTE_SMTP_ENV"
+fi
+REMOTE_ARGS=(bash "$REMOTE_SCRIPT" "$REMOTE_BUNDLE" "$REVISION" "$BUNDLE_SHA" "$DEPLOY_APP_DIR" "$DEPLOY_DOMAIN" "$DEPLOY_CERTBOT_EMAIL")
+if [[ -n "$TEMP_SMTP_ENV" ]]; then
+    REMOTE_ARGS+=("$REMOTE_SMTP_ENV")
+fi
+ssh "${SSH_OPTIONS[@]}" "$DEPLOY_USER@$DEPLOY_HOST" "${REMOTE_ARGS[@]}"

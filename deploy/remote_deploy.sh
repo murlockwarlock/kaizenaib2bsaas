@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-if [[ $# -ne 6 ]]; then
-    printf 'Usage: %s BUNDLE REVISION BUNDLE_SHA APP_DIR DOMAIN CERTBOT_EMAIL\n' "$0" >&2
+if [[ $# -lt 6 || $# -gt 7 ]]; then
+    printf 'Usage: %s BUNDLE REVISION BUNDLE_SHA APP_DIR DOMAIN CERTBOT_EMAIL [SMTP_ENV_FILE]\n' "$0" >&2
     exit 2
 fi
 
@@ -12,6 +12,7 @@ EXPECTED_BUNDLE_SHA=$3
 APP_DIR=$4
 DOMAIN=$5
 CERTBOT_EMAIL=$6
+SMTP_ENV_FILE=${7:-}
 
 if [[ "$APP_DIR" != "/opt/kaizenai" ]]; then
     printf 'Unexpected application directory\n' >&2
@@ -38,6 +39,14 @@ if [[ ! "$CERTBOT_EMAIL" =~ ^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$ ]]; 
     exit 2
 fi
 
+if [[ -n "$SMTP_ENV_FILE" ]]; then
+    if [[ "$SMTP_ENV_FILE" != /tmp/kaizenai-smtp-* || ! -f "$SMTP_ENV_FILE" ]]; then
+        printf 'Invalid SMTP environment file\n' >&2
+        exit 2
+    fi
+    chmod 0600 "$SMTP_ENV_FILE"
+fi
+
 sudo -n true
 
 STAGING_DIR=$(mktemp -d)
@@ -61,6 +70,9 @@ PREVIOUS_RELEASE=""
 
 cleanup() {
     rm -rf "$STAGING_DIR"
+    if [[ -n "$SMTP_ENV_FILE" ]]; then
+        rm -f "$SMTP_ENV_FILE"
+    fi
 }
 
 rollback() {
@@ -245,6 +257,54 @@ ln -sfn "$SHARED_DIR/frontend.env" "$RELEASE_DIR/frontend/.env.production"
 run_logged frontend-dependencies env PATH="$NODE_ROOT/bin:$PATH" "$NPM_BIN" --prefix "$RELEASE_DIR/frontend" ci --no-audit --no-fund
 run_logged frontend-build env NODE_OPTIONS=--max-old-space-size=1536 PATH="$NODE_ROOT/bin:$PATH" "$NPM_BIN" --prefix "$RELEASE_DIR/frontend" run build
 rm -f "$RELEASE_DIR/frontend/.env.production"
+
+if [[ -n "$SMTP_ENV_FILE" ]]; then
+    python3 - "$SHARED_DIR/backend.env" "$SMTP_ENV_FILE" <<'PY'
+from pathlib import Path
+import sys
+
+backend_env = Path(sys.argv[1])
+smtp_env = Path(sys.argv[2])
+allowed = {"SMTP_EMAIL", "SMTP_PASSWORD", "SMTP_HOST", "SMTP_PORT", "SMTP_USE_SSL", "SMTP_FROM_NAME"}
+updates: dict[str, str] = {}
+
+for raw_line in smtp_env.read_text(encoding="utf-8").splitlines():
+    line = raw_line.strip("\r")
+    if not line or line.startswith("#"):
+        continue
+    key, separator, value = line.partition("=")
+    if separator and key in allowed:
+        if "\n" in value or "\r" in value:
+            raise SystemExit(f"Invalid newline in {key}")
+        updates[key] = value
+
+if not updates.get("SMTP_EMAIL") or not updates.get("SMTP_PASSWORD"):
+    raise SystemExit("SMTP_EMAIL and SMTP_PASSWORD are both required")
+
+existing = backend_env.read_text(encoding="utf-8").splitlines()
+result: list[str] = []
+seen: set[str] = set()
+for line in existing:
+    key, separator, _ = line.partition("=")
+    if separator and key in updates:
+        if key not in seen:
+            result.append(f"{key}={updates[key]}")
+            seen.add(key)
+    else:
+        result.append(line)
+
+for key, value in updates.items():
+    if key not in seen:
+        result.append(f"{key}={value}")
+
+temporary = backend_env.with_name(backend_env.name + ".tmp")
+temporary.write_text("\n".join(result) + "\n", encoding="utf-8")
+temporary.chmod(0o600)
+temporary.replace(backend_env)
+PY
+    chown ubuntu:ubuntu "$SHARED_DIR/backend.env"
+    chmod 0600 "$SHARED_DIR/backend.env"
+fi
 
 SYSTEMD_BACKUP_DIR="$BACKUP_DIR/systemd"
 install -d -o ubuntu -g ubuntu -m 0755 "$SYSTEMD_BACKUP_DIR"
