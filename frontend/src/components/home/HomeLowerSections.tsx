@@ -70,6 +70,10 @@ function normalizeMediaSrc(src: string) {
   return src;
 }
 
+function LazyCardImage({ src, sizes, className }: { src: string; sizes: string; className?: string }) {
+  return <Image src={src} alt="" fill unoptimized loading="lazy" decoding="async" sizes={sizes} className={className} />;
+}
+
 function LazyVideo({
   src,
   className,
@@ -150,10 +154,10 @@ function FeedCard({
               className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
             />
           ) : (
-            <div
-              className="absolute inset-0 h-full w-full bg-cover bg-center transition-transform duration-500 group-hover:scale-[1.03]"
-              style={{ backgroundImage: `linear-gradient(180deg, rgba(3,5,9,0.14), rgba(3,5,9,0.5)), url("${preview}")` }}
-            />
+            <>
+              <LazyCardImage src={preview} sizes="(max-width: 1280px) 100vw, 33vw" className="object-cover transition-transform duration-500 group-hover:scale-[1.03]" />
+              <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(3,5,9,0.14),rgba(3,5,9,0.5))]" />
+            </>
           )
         ) : (
           <div className="flex h-full items-end p-5">
@@ -189,10 +193,10 @@ function CompactSectionCardView({
     >
       <div className="relative h-28 w-24 shrink-0 overflow-hidden rounded-[1rem] bg-[rgba(8,10,14,0.9)]">
         {mediaSrc ? (
-          <div
-            className={`h-full w-full bg-cover ${imagePositionClass}`}
-            style={{ backgroundImage: `linear-gradient(180deg, rgba(3,5,9,0.16), rgba(3,5,9,0.42)), url("${mediaSrc}")` }}
-          />
+          <>
+            <LazyCardImage src={mediaSrc} sizes="96px" className={`object-cover ${imagePositionClass}`} />
+            <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(3,5,9,0.16),rgba(3,5,9,0.42))]" />
+          </>
         ) : (
           <div className="flex h-full items-center justify-center bg-[linear-gradient(145deg,rgba(255,107,74,0.18),rgba(34,199,184,0.16))]">
             <FallbackIcon className="h-5 w-5 text-white/70" />
@@ -259,7 +263,7 @@ function SectionCardView({
             {isVideoSrc(card.imageBefore!) ? (
               <LazyVideo src={card.imageBefore!} autoPlayEnabled={allowVideoPreview} className={mediaClassName} />
             ) : (
-              <div className={`h-full w-full bg-cover ${imagePositionClass}`} style={{ backgroundImage: `url("${card.imageBefore}")` }} />
+              <LazyCardImage src={card.imageBefore!} sizes="(max-width: 1280px) 44vw, 20vw" className={`object-cover ${imagePositionClass}`} />
             )}
             <div className="absolute bottom-2 left-2 rounded-full bg-black/55 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-white/80 backdrop-blur-sm">
               Before
@@ -269,7 +273,7 @@ function SectionCardView({
             {imgIsVideo ? (
               <LazyVideo src={card.image!} autoPlayEnabled={allowVideoPreview} className={mediaClassName} />
             ) : (
-              <div className={`h-full w-full bg-cover ${imagePositionClass}`} style={{ backgroundImage: `url("${card.image}")` }} />
+              <LazyCardImage src={card.image!} sizes="(max-width: 1280px) 44vw, 20vw" className={`object-cover ${imagePositionClass}`} />
             )}
             <div className="absolute bottom-2 right-2 rounded-full bg-black/55 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-white/80 backdrop-blur-sm">
               After
@@ -288,8 +292,9 @@ function SectionCardView({
       ) : (
         <div
           className={`relative w-full bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.16),transparent_45%),linear-gradient(135deg,rgba(255,107,74,0.22),rgba(34,199,184,0.16),rgba(9,12,18,0.55))] bg-cover ${imagePositionClass} ${mediaHeightClass}`}
-          style={card.image ? { backgroundImage: `linear-gradient(180deg, rgba(3,5,9,0.18), rgba(3,5,9,0.5)), url("${card.image}")` } : undefined}
         >
+          {card.image ? <LazyCardImage src={card.image} sizes="(max-width: 1280px) 44vw, 20vw" className="object-cover" /> : null}
+          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(3,5,9,0.18),rgba(3,5,9,0.5))]" />
           {(isNew || isHot) && (
             <span className={`absolute right-2 top-2 z-10 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider backdrop-blur-sm ${isNew ? 'bg-emerald-500/80 text-white' : 'bg-orange-500/80 text-white'}`}>
               {isNew ? 'NEW' : 'Hot'}

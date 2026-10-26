@@ -276,8 +276,15 @@ function HeaderDropdown({
   sectionHref: string;
   ctaLabel: string;
 }) {
+  const [isOpen, setIsOpen] = useState(false);
+
   return (
-    <div className="group relative">
+    <div
+      className="group relative"
+      onMouseEnter={() => setIsOpen(true)}
+      onMouseLeave={() => setIsOpen(false)}
+      onFocusCapture={() => setIsOpen(true)}
+    >
       <a
         href={`#${sectionId}`}
         className="inline-flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium text-zinc-300 transition-colors hover:bg-white/[0.05] hover:text-white"
@@ -310,10 +317,10 @@ function HeaderDropdown({
                     href={card.href}
                     className="overflow-hidden rounded-[1.35rem] bg-white/[0.03] transition-all hover:-translate-y-0.5 hover:bg-white/[0.05]"
                   >
-                    <div
-                      className="h-24 w-full bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.16),transparent_45%),linear-gradient(135deg,rgba(255,107,74,0.24),rgba(34,199,184,0.16),rgba(9,12,18,0.55))] bg-cover bg-center"
-                      style={card.image ? { backgroundImage: `linear-gradient(180deg, rgba(3,5,9,0.12), rgba(3,5,9,0.44)), url("${card.image}")` } : undefined}
-                    />
+                    <div className="relative h-24 w-full overflow-hidden bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.16),transparent_45%),linear-gradient(135deg,rgba(255,107,74,0.24),rgba(34,199,184,0.16),rgba(9,12,18,0.55))]">
+                      {isOpen && card.image ? <Image src={card.image} alt="" fill unoptimized loading="lazy" sizes="160px" className="object-cover" /> : null}
+                      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(3,5,9,0.12),rgba(3,5,9,0.44))]" />
+                    </div>
                     <div className="p-4">
                       <div className="text-sm font-semibold text-white">{card.title}</div>
                       <p className="mt-2 line-clamp-2 text-xs leading-5 text-zinc-400">{card.description}</p>

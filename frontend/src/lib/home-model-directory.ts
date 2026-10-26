@@ -186,6 +186,17 @@ const VIDEO_MODEL_IMAGE_MAP: Record<string, string> = {
   'pixverse-v6-max/image-to-video': 'https://images.unsplash.com/photo-1493246507139-91e8fad9978e?auto=format&fit=crop&w=1400&q=80',
 };
 
+const VIDEO_FAMILY_IMAGE_FALLBACKS: Record<VideoFamilyId, string> = {
+  bytedance: VIDEO_MODEL_IMAGE_MAP['bytedance/seedance-1-5-pro'],
+  kling: VIDEO_MODEL_IMAGE_MAP['kling-2.6/text-to-video'],
+  veo: VIDEO_MODEL_IMAGE_MAP['veo-3.1/text-quality'],
+  hailuo: VIDEO_MODEL_IMAGE_MAP['hailuo/02-image-to-video-standard'],
+  wan: VIDEO_MODEL_IMAGE_MAP['wan/2-6-image-to-video'],
+  runway: VIDEO_MODEL_IMAGE_MAP['runway/generate'],
+  grok: VIDEO_MODEL_IMAGE_MAP['bytedance/v1-pro-text-to-video'],
+  pixverse: VIDEO_MODEL_IMAGE_MAP['pixverse-v6-max/text-to-video'],
+};
+
 const IMAGE_MODEL_IMAGE_MAP: Record<string, string> = {
   'flux-2/pro-text-to-image': 'https://images.unsplash.com/photo-1519608487953-e999c86e7455?auto=format&fit=crop&w=1400&q=80',
   'flux-2/pro-image-to-image': 'https://images.unsplash.com/photo-1500534623283-312aade485b7?auto=format&fit=crop&w=1400&q=80',
@@ -325,7 +336,7 @@ function getVideoCardChips(model: VideoModelDefinition, locale: SupportedLocale)
 }
 
 function getVideoCardImage(model: VideoModelDefinition) {
-  return VIDEO_MODEL_IMAGE_MAP[model.id];
+  return VIDEO_MODEL_IMAGE_MAP[model.id] || VIDEO_FAMILY_IMAGE_FALLBACKS[model.family];
 }
 
 function getImageCardDescription(modelId: string, type: string, locale: SupportedLocale) {
@@ -374,7 +385,7 @@ function getImageCardChips(groupLabel: string, modelId: string, type: string, lo
 }
 
 function getImageCardImage(modelId: string) {
-  return IMAGE_MODEL_IMAGE_MAP[modelId];
+  return IMAGE_MODEL_IMAGE_MAP[modelId] || IMAGE_MODEL_IMAGE_MAP['google/nano-banana'];
 }
 
 export function buildVideoDirectory(locale: SupportedLocale): DirectoryGroup[] {
