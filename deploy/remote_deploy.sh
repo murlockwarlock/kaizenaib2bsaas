@@ -250,7 +250,7 @@ fi
 ln -sfn "$SHARED_DIR/backend.env" "$RELEASE_DIR/backend/.env"
 run_logged backend-venv python3 -m venv "$RELEASE_DIR/backend/.venv"
 run_logged backend-dependencies "$RELEASE_DIR/backend/.venv/bin/pip" install --no-cache-dir -r "$RELEASE_DIR/backend/requirements.txt"
-run_logged backend-migrations "$RELEASE_DIR/backend/.venv/bin/python" "$RELEASE_DIR/backend/scripts/migrate.py"
+run_logged backend-migrations bash -c "cd '$RELEASE_DIR/backend' && exec '$RELEASE_DIR/backend/.venv/bin/python' scripts/migrate.py"
 rm -f "$RELEASE_DIR/backend/.env"
 
 ln -sfn "$SHARED_DIR/frontend.env" "$RELEASE_DIR/frontend/.env.production"
